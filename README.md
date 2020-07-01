@@ -11,6 +11,8 @@ The initial release has a simple program implementation where BASIC and binary f
 
 THIS EMULATOR WILL ***NOT*** RUN GAMES.
 
+The Commodore 64 ROMs are included for educational purposes and not licensed whatsoever.
+
 To compile the code, you need node.js/npm, and typescript installed.  My development environment is using Visual Code, you can use something else.   Typescript is used to transpile into JavaScript.  The implementation uses a canvas in html, and a web worker for running the 6502 in the background.  Normally web browsers won't load a web worker as is from the local file system, so using a web server is recommended to serve up the pages from port 80, or whatever you like (left as an exercise to the programmer).  A release version is not provided at this time, just source.
 
 The release requires index.html, the *.js files, and FireFox is the recommended browser as it gives the best keyboard emulation.  Ctrl or ALT is the Commodore key, Tab is the Control key.  See [c64-kbd.ts](https://github.com/davervw/ts-emu-c64/blob/master/c64-kbd.ts) for full keyboard table diagrams.  Hint: ESC is Stop.
