@@ -1,6 +1,8 @@
 # ts-emu-c64
 TypeScript implementation of C64 Emulation (Commodore 64)
 
+Try it out -> https://davervw.github.io/ts-emu-c64/v0.1-alpha-release/
+
 This project began as a port of my text mode 6502/C64 emulator [simple-emu-c64](https://github.com/davervw/simple-emu-c64) from C# to TypeScript, and is a learning experience with TypeScript/JavaScript.
 
 It includes a port of the keyboard driver from my [C64-stm429_discovery](https://os.mbed.com/users/davervw/code/C64-stm429_discovery/) project, and rough adaptation of the memory mapped screen/color driver from the same project.
