@@ -1,0 +1,46 @@
+<html>
+<title>Commodore 64 - 6502 Emulator</title>
+<doc user-select:none>
+    <canvas id="screen" width="320" height="200" style="border:48px solid #8080FF;">
+        Your browser does not support the HTML5 canvas tag.</canvas>
+</doc>
+<script src="c64-draw.js"></script>
+<script src="c64-kbd.js"></script>
+<script src="c64-roms.js"></script>
+<script>
+
+    var canvas = document.getElementById("screen");
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, 320, 200);
+
+    var w; // worker
+
+    function startWorker() {
+      //return false;
+      if(typeof(Worker) !== "undefined") {
+        if(typeof(w) == "undefined") {
+          w = new Worker("c64-6502.js");
+        }
+        w.onmessage = function(event) {
+          if (event.data[0] == "char")
+            drawC64Char(ctx, event.data[1], event.data[2], event.data[3], event.data[4], event.data[5]);
+          else if (event.data[0] == "border")
+            drawC64Border(canvas, event.data[1]);
+        };
+        return true;
+      } else {
+        document.getElementById("result").innerHTML = "Sorry, your browser does not support Web Workers...";
+      }
+      return false;
+    }
+
+    if (startWorker()) // start worker
+    {
+      w.postMessage({basic: c64_basic_rom, char: c64_char_rom, kernal: c64_kernal_rom});
+      let c64keys = new C64keymapper(w); // start keyboard driver
+    }
+
+</script>
+
+</html>
