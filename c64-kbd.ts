@@ -112,7 +112,7 @@ let keyCodeToCBMScan: number[][] =
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 160: na, na, na, na, na, na, na, na, na, na
             64, 64, 64, 43, 64, 64, 64, 64, 64, 64, // 170: na, na, na, -, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 50, 53, 47, 43, // 180: na, na, na, na, na, na, ;, =, ,, -
-            44, 55, 64, 64, 64, 64, 64, 64, 64, 64, // 190: ., /, na, na, na, na, na, na, na, na
+            44, 55, 256 + 24, 64, 64, 64, 64, 64, 64, 64, // 190: ., /, ', na, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 200: na, na, na, na, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 64, 64, 64, 256 + 45, // 210: na, na, na, na, na, na, na, na, na, [
             48, 256 + 50, 256 + 24, 64, 64, 64, 64, 64, 64, 64, // 220: £, ], ', na, na, na, na, na, na, na
@@ -140,7 +140,7 @@ let keyCodeToCBMScan: number[][] =
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 160: na, na, na, na, na, na, na, na, na, na
             64, 64, 64, 512 + 57, 64, 64, 64, 64, 64, 64, // 170: na, na, na, L.Arrow, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 512 + 45, 512 + 40, 47, 512 + 57, // 180: na, na, na, na, na, na, :, +, <, L.Arrow
-            44, 55, 64, 64, 64, 64, 64, 64, 64, 64, // 190: >, ?, na, na, na, na, na, na, na, na
+            44, 55, 59, 64, 64, 64, 64, 64, 64, 64, // 190: >, ?, ", na, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 200: na, na, na, na, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 64, 64, 64, 45, // 210: na, na, na, na, na, na, na, na, na, [
             48, 50, 59, 64, 64, 64, 64, 64, 64, 64, // 220: £, ], ", na, na, na, na, na, na, na
@@ -166,7 +166,18 @@ class C64keymapper {
 function C64keyEvent(event: KeyboardEvent): boolean {
     //console.log(event);
     let modifiers = (event.metaKey ? '1' : '0') + (event.altKey ? '1' : '0') + (event.ctrlKey ? '1' : '0') + (event.shiftKey ? '1' : '0');
-    let scan = keyCodeToCBMScan[event.shiftKey ? 1 : 0][event.keyCode];
+    let keyCode = event.keyCode;
+    if (keyCode == 0) { // Firefox Android has some missing keyCodes
+        if (event.key == "'")
+            keyCode = 222;
+        else if (event.key == '"')
+            keyCode = 222;
+        else if (event.key == "-")
+            keyCode = 189;
+        else if (event.key == "_")
+            keyCode = 189;
+    }
+    let scan = keyCodeToCBMScan[event.shiftKey ? 1 : 0][keyCode];
     if (event.code == "ShiftRight") // differentiate Right from Left for Commodore
         scan = 52; // Right Shift
     //let msg = event.type + " " + event.keyCode + " " + event.code + " " + event.key + " " + modifiers + " " + scan;
