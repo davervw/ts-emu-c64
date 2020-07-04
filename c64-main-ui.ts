@@ -132,7 +132,7 @@ let keyCodeToCBMScan: number[][] =
             38, 62, 17, 13, 22, 30, 31, 9, 23, 25, // 80: P, Q, R, S, T, U, V, W, X, Y
             12, 64, 64, 64, 64, 64, 512 + 35, 512 + 56, 512 + 59, 512 + 8, // 90: Z, na, na, na, na, na, [0], [1], [2], [3]
             512 + 11, 512 + 16, 512 + 19, 512 + 24, 512 + 27, 512 + 32, 512 + 49, 512 + 40, 64, 512 + 43, // 100: [4], [5], [6], [7], [8], [9], [*], [+], na, [-]
-            512 + 44, 512 + 55, 512 + 4, 4, 512 + 5, 5, 512 + 6, 6, 512 + 3, 3, // 110: [.], [/], F1, F2, F3, F4, F5, F6, F7, F8
+            512 + 44, 512 + 55, 4, 4, 5, 5, 6, 6, 3, 3, // 110: [.], [/], F2, F2, F4, F4, F6, F6, F8, F8
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 120: na, na, na, na, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 130: na, na, na, na, na, na, na, na, na, na
             64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 140: na, na, na, na, na, na, na, na, na, na
@@ -186,6 +186,8 @@ function C64keyEvent(event: KeyboardEvent): boolean {
     if (event.type == "keydown") {
         if (scan != 64 && keys.indexOf(scan) < 0)
             keys.push(scan);
+        else if (event.code == "F9")
+            toggleAbout();
     }
     else if (event.type == "keyup") {
         let i = keys.indexOf(scan);
@@ -200,6 +202,12 @@ function C64keyEvent(event: KeyboardEvent): boolean {
             if (i >= 0)
                 keys.splice(i,1);
             i = keys.indexOf(15); // Left Shift
+            if (i >= 0)
+                keys.splice(i,1);
+        }
+        if (keys.length > 0 && !event.altKey) {
+            // browser may miss reporting keyup on Alt, e.g. toggle menus, ALT+Tab
+            i = keys.indexOf(61); // C=
             if (i >= 0)
                 keys.splice(i,1);
         }
@@ -238,13 +246,278 @@ function C64keyEvent(event: KeyboardEvent): boolean {
     }
 
     //console.log(sendkeys.toString());
-    cpuWorker.postMessage(sendkeys.toString());
+    cpuWorker.postMessage({ keys: sendkeys.toString() });
 
     // const log : HTMLElement | null = document.getElementById("log");
     // if (log)
     //     log.innerHTML = keys.toString();
 
-    event.preventDefault(); // disable all keys default actions (as allowed by OS and user agent)          
-    event.stopPropagation();  
+    if (scan != 64)
+    {
+      event.preventDefault(); // disable all keys default actions (as allowed by OS and user agent)
+      event.stopPropagation();  
+    }
     return false;
+}
+
+// c64-main-ui.ts - Commodore 64 display drawing
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// simple-emu-c64
+// C64/6502 Emulator for Microsoft Windows Console
+//
+// MIT License
+//
+// Copyright (c) 2020 by David R. Van Wagner
+// davevw.com
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+var canvas: any = document.getElementById("screen");
+var ctx = canvas?.getContext("2d");
+ctx.fillStyle = "#000000";
+ctx.fillRect(0, 0, 320, 200);
+
+var about_img: HTMLImageElement = new Image();
+var about_loaded: boolean = false;
+var about_active: boolean = false;
+about_img.addEventListener("load", function() { 
+    ctx.drawImage(about_img, 0,0);
+    about_loaded = true;
+  }, false);
+about_img.src = "emuc64-about.png";
+
+function toggleAbout() {
+  if (about_active) {
+    about_active = false;
+    drawC64Screen();
+  } else {
+    about_active = true;
+    ctx.drawImage(about_img, 0,0);
+  }
+}
+
+function canvasClick(event: Event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (about_active)
+    window.open("https://github.com/davervw/ts-emu-c64/blob/master/README.md");
+  else
+    toggleAbout();
+}
+
+var w: Worker | undefined; // worker
+
+function startWorker() {
+  //return false;
+  if (typeof (Worker) !== "undefined") {
+    if (typeof (w) == "undefined") {
+      w = new Worker("c64-6502.js");
+    }
+    w.onmessage = function (event) {
+      if (event.data[0] == "char")
+        drawC64Char(ctx, event.data[1], event.data[2], event.data[3], event.data[4], event.data[5]);
+      else if (event.data[0] == "border")
+        drawC64Border(canvas, event.data[1]);
+    };
+    return true;
+  } else {
+    var result: HTMLElement | null = document.getElementById("result");
+    if (result != null)
+      result.innerHTML = "Sorry, your browser does not support Web Workers...";
+  }
+  return false;
+}
+
+if (startWorker() && w != null) // start worker
+{
+  w.postMessage({ basic: c64_basic_rom, char: c64_char_rom, kernal: c64_kernal_rom });
+  let c64keys = new C64keymapper(w); // start keyboard driver
+}
+
+// c64-draw.ts - Commodore 64 display drawing
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// simple-emu-c64
+// C64/6502 Emulator for Microsoft Windows Console
+//
+// MIT License
+//
+// Copyright (c) 2020 by David R. Van Wagner
+// davevw.com
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+let C64colors: number[][] = [
+  [0, 0, 0, 255],       // [0] black
+  [255, 255, 255, 255], // [1] white
+  [192, 0, 0, 255],     // [2] red
+  [0, 255, 255, 255],   // [3] cyan
+  [160, 32, 160, 255],  // [4] purple
+  [32, 160, 32, 255],   // [5] green
+  [64, 64, 192, 255],   // [6] blue
+  [255, 255, 128, 255], // [7] yellow
+  [255, 128, 0, 255],   // [8] orange
+  [128, 64, 0, 255],    // [9] brown  
+  [192, 32, 32, 255],   // [10] lt red
+  [64, 64, 64, 255],    // [11] dk gray
+  [128, 128, 128, 255], // [12] med gray
+  [160, 255, 160, 255], // [13] lt green
+  [128, 128, 255, 255], // [14] lt blue
+  [192, 192, 192, 255], // [15] lt gray
+];
+
+function toHex(value: number, digits: number): string {
+  let s: string = value.toString(16).toUpperCase();
+  while (s.length < digits)
+    s = "0" + s;
+  return s;
+}
+
+function toHex8(value: number): string {
+  return toHex(value, 2);
+}
+
+function drawC64Screen(){
+  cpuWorker.postMessage({ redraw: true });
+}
+
+function drawC64Border(canvas: HTMLElement, color: number) {
+  color = color & 0xF;
+  let rgb = C64colors[color];
+  canvas.style.borderColor = "#" + toHex8(rgb[0]) + toHex8(rgb[1]) + toHex8(rgb[2]);
+}
+
+function drawC64Char(ctx: CanvasRenderingContext2D, chardata: number[], x: number, y: number, fg: number, bg: number) {
+  var char: ImageData = new ImageData(8, 8);
+  var b: number;
+  var r: number;
+
+  if (about_active)
+    return; // don't overwrite about screen
+
+  fg = fg & 0xF;
+  bg = bg & 0xF;
+
+  for (r = 0; r < 8; ++r) {
+    for (b = 0; b < 8; ++b) {
+      var j = (r * 8 + (7 - b)) * 4;
+      if ((chardata[r] & (1 << b)) != 0) {
+        char.data[j + 0] = C64colors[fg][0];
+        char.data[j + 1] = C64colors[fg][1];
+        char.data[j + 2] = C64colors[fg][2];
+        char.data[j + 3] = C64colors[fg][3];
+      }
+      else {
+        char.data[j + 0] = C64colors[bg][0];
+        char.data[j + 1] = C64colors[bg][1];
+        char.data[j + 2] = C64colors[bg][2];
+        char.data[j + 3] = C64colors[bg][3];
+      }
+    }
+  }
+
+  ctx.putImageData(char, x, y);
+}
+
+// c64-drag-drop.ts - Commodore 64 display drawing
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// simple-emu-c64
+// C64/6502 Emulator for Microsoft Windows Console
+//
+// MIT License
+//
+// Copyright (c) 2020 by David R. Van Wagner
+// davevw.com
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// modified from https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+
+function dropHandler(ev: any) {
+  console.log('File(s) dropped');
+
+  // Prevent default behavior (Prevent file from being opened)
+  ev.preventDefault();
+
+  if (ev.dataTransfer.items) {
+    // Use DataTransferItemList interface to access the file(s)
+    for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+      // If dropped items aren't files, reject them
+      if (ev.dataTransfer.items[i].kind === 'file') {
+        var file = ev.dataTransfer.items[i].getAsFile();
+        console.log('... file[' + i + '].name = ' + file.name);
+      }
+    }
+  } else {
+    // Use DataTransfer interface to access the file(s)
+    for (var i = 0; i < ev.dataTransfer.files.length; i++) {
+      console.log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
+    }
+  }
+}
+
+function dragOverHandler(ev: any) {
+  console.log('File(s) in drop zone'); 
+
+  // Prevent default behavior (Prevent file from being opened)
+  ev.preventDefault();
 }
