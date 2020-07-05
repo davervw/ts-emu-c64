@@ -86,115 +86,256 @@
 //           ASDFGHJKL[]=
 //           ZXCVBNM<>?    Up Lt
 
-// +256 = add left shift
-// +512 = remove shift
-// +1024 = RESTORE/NMI
-// +2048 = CAPS
-let keyCodeToCBMScan: number[][] =
-    [
-        [ // [0][0..255] unshifted
-            64, 64, 64, 64, 64, 64, 64, 64, 0, 58, // 0: na, na, na, na, na, na, na, na, DEL, CTRL
-            64, 64, 64, 1, 64, 64, 15, 61, 61, 63, // 10: na, na, na, RET, na, na, LShift, C=, C=, STOP
-            2048 + 64, 64, 64, 64, 64, 64, 64, 63, 64, 64, // 20: CAPS, na, na, na, na, na, na, STOP, na, na
-            64, 64, 60, 1024 + 64, 64, 64, 51, 256 + 2, 256 + 7, 2, // 30: na, na, SPC, RESTORE, na, na, HM, LT, UP, RT
-            7, 64, 64, 64, 64, 256 + 0, 0, 64, 35, 56, // 40: DN, na, na, na, na, INS, DEL, na, 0, 1
-            59, 8, 11, 16, 19, 24, 27, 32, 64, 50, // 50: 2, 3, 4, 5, 6, 7, 8, 9, na, ;
-            64, 53, 64, 64, 64, 10, 28, 20, 18, 14, // 60: na, =, na, na, na, A, B, C, D, E
-            21, 26, 29, 33, 34, 37, 42, 36, 39, 38, // 70: F, G, H, I, J, K, L, M, N, O
-            41, 62, 17, 13, 22, 30, 31, 9, 23, 25, // 80: P, Q, R, S, T, U, V, W, X, Y
-            12, 64, 64, 64, 64, 64, 35, 56, 59, 8, // 90: Z, na, na, na, na, na, [0], [1], [2], [3]
-            11, 16, 19, 24, 27, 32, 49, 40, 64, 43, // 100: [4], [5], [6], [7], [8], [9], [*], [+], na, [-]
-            44, 55, 4, 256 + 4, 5, 256 + 5, 6, 256 + 6, 3, 256 + 3, // 110: [.], /, F1, F2, F3, F4, F5, F6, F7, F8
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 120: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 130: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 140: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 150: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 160: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 43, 64, 64, 64, 64, 64, 64, // 170: na, na, na, -, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 50, 53, 47, 43, // 180: na, na, na, na, na, na, ;, =, ,, -
-            44, 55, 256 + 24, 64, 64, 64, 64, 64, 64, 64, // 190: ., /, ', na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 200: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 256 + 45, // 210: na, na, na, na, na, na, na, na, na, [
-            48, 256 + 50, 256 + 24, 64, 64, 64, 64, 64, 64, 64, // 220: £, ], ', na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 230: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 240: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64                  // 250: na, na, na, na, na, na
-        ],
-        [ // [1][0..255] // shifted
-            64, 64, 64, 64, 64, 64, 64, 64, 0, 58, // 0: na, na, na, na, na, na, na, na, DEL, CTRL
-            64, 64, 64, 1, 64, 64, 15, 61, 61, 63, // 10: na, na, na, RET, na, na, LShift, C=, C=, STOP
-            2048 + 64, 64, 64, 64, 64, 64, 64, 63, 64, 64, // 20: CAPS, na, na, na, na, na, na, STOP, na, na
-            64, 64, 60, 1024 + 64, 64, 64, 51, 256 + 2, 256 + 7, 2, // 30: na, na, SPC, RESTORE, na, na, HM, LT, UP, RT
-            7, 64, 64, 64, 64, 256 + 0, 0, 64, 32, 56, // 40: DN, na, na, na, na, INS, DEL, na, ), !
-            512 + 46, 8, 11, 16, 512 + 54, 19, 512 + 49, 27, 64, 512 + 45, // 50: @, #, $, %, ^, &, *, (, na, :
-            64, 512 + 40, 64, 64, 64, 10, 28, 20, 18, 14, // 60: na, +, na, na, na, A, B, C, D, E
-            21, 26, 29, 33, 34, 37, 42, 36, 39, 38, // 70: F, G, H, I, J, K, L, M, N, O
-            38, 62, 17, 13, 22, 30, 31, 9, 23, 25, // 80: P, Q, R, S, T, U, V, W, X, Y
-            12, 64, 64, 64, 64, 64, 512 + 35, 512 + 56, 512 + 59, 512 + 8, // 90: Z, na, na, na, na, na, [0], [1], [2], [3]
-            512 + 11, 512 + 16, 512 + 19, 512 + 24, 512 + 27, 512 + 32, 512 + 49, 512 + 40, 64, 512 + 43, // 100: [4], [5], [6], [7], [8], [9], [*], [+], na, [-]
-            512 + 44, 512 + 55, 4, 4, 5, 5, 6, 6, 3, 3, // 110: [.], [/], F2, F2, F4, F4, F6, F6, F8, F8
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 120: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 130: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 140: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 150: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 160: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 512 + 57, 64, 64, 64, 64, 64, 64, // 170: na, na, na, L.Arrow, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 512 + 45, 512 + 40, 47, 512 + 57, // 180: na, na, na, na, na, na, :, +, <, L.Arrow
-            44, 55, 59, 64, 64, 64, 64, 64, 64, 64, // 190: >, ?, ", na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 200: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 45, // 210: na, na, na, na, na, na, na, na, na, [
-            48, 50, 59, 64, 64, 64, 64, 64, 64, 64, // 220: £, ], ", na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 230: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64, 64, 64, 64, 64, // 240: na, na, na, na, na, na, na, na, na, na
-            64, 64, 64, 64, 64, 64                  // 250: na, na, na, na, na, na
-        ],
-    ];
+let keyDictionary: { [key: string]: any } = {
+    'a': { scan: 10 },
+    'b': { scan: 28 },
+    'c': { scan: 20 },
+    'd': { scan: 18 },
+    'e': { scan: 14 },
+    'f': { scan: 21 },
+    'g': { scan: 26 },
+    'h': { scan: 29 },
+    'i': { scan: 33 },
+    'j': { scan: 34 },
+    'k': { scan: 37 },
+    'l': { scan: 42 },
+    'm': { scan: 36 },
+    'n': { scan: 39 },
+    'o': { scan: 38 },
+    'p': { scan: 41 },
+    'q': { scan: 62 },
+    'r': { scan: 17 },
+    's': { scan: 13 },
+    't': { scan: 22 },
+    'u': { scan: 30 },
+    'v': { scan: 31 },
+    'w': { scan: 9 },
+    'x': { scan: 23 },
+    'y': { scan: 25 },
+    'z': { scan: 12 },
+    'A': { scan: 10 },
+    'B': { scan: 28 },
+    'C': { scan: 20 },
+    'D': { scan: 18 },
+    'E': { scan: 14 },
+    'F': { scan: 21 },
+    'G': { scan: 26 },
+    'H': { scan: 29 },
+    'I': { scan: 33 },
+    'J': { scan: 34 },
+    'K': { scan: 37 },
+    'L': { scan: 42 },
+    'M': { scan: 36 },
+    'N': { scan: 39 },
+    'O': { scan: 38 },
+    'P': { scan: 41 },
+    'Q': { scan: 62 },
+    'R': { scan: 17 },
+    'S': { scan: 13 },
+    'T': { scan: 22 },
+    'U': { scan: 30 },
+    'V': { scan: 31 },
+    'W': { scan: 9 },
+    'X': { scan: 23 },
+    'Y': { scan: 25 },
+    'Z': { scan: 12 },
+    'Enter': { scan: 1 },
+    'Tab': { scan: 58 },  // Control
+    'Escape': { scan: 63 },  // Stop
+    'Pause': { scan: 63 },  // Stop
+    'ShiftLeft': { scan: 15 },
+    'ShiftRight': { scan: 52 },
+    'CtrlLeft': { scan: 61 },  // Commodore
+    'CtrlRight': { scan: 61 },  // Commodore
+    'AltLeft': { scan: 61 },  // Commodore
+    'AltRight': { scan: 61 },  // Commodore
+    'Backspace': { scan: 0 },
+    'Insert': { scan: 0, shift: 1 },
+    'Delete': { scan: 0 },
+    'Home': { scan: 51 },
+    'ArrowUp': { scan: 7, shift: 1 },
+    'ArrowDown': { scan: 7 },
+    'ArrowLeft': { scan: 2, shift: 1 },
+    'ArrowRight': { scan: 2 },
+    '1': { scan: 56, shift: 0 },
+    '2': { scan: 59, shift: 0, release: '@' },
+    '3': { scan: 8, shift: 0 },
+    '4': { scan: 11, shift: 0 },
+    '5': { scan: 16, shift: 0 },
+    '6': { scan: 19, shift: 0, release: '^' },
+    '7': { scan: 24, shift: 0, release: '&' },
+    '8': { scan: 27, shift: 0, release: '*' },
+    '9': { scan: 32, shift: 0, release: '(' },
+    '0': { scan: 35, shift: 0, release: ')' },
+    ' ': { scan: 60 },
+    '!': { scan: 56, shift: 1 },
+    '"': { scan: 59, shift: 1 },
+    '#': { scan: 8, shift: 1 },
+    '$': { scan: 11, shift: 1 },
+    '%': { scan: 16, shift: 1 },
+    '&': { scan: 19, shift: 1 },
+    "'": { scan: 24, shift: 1, release: '"' },
+    '(': { scan: 27, shift: 1 },
+    ')': { scan: 32, shift: 1 },
+    '*': { scan: 49, shift: 0 },
+    '^': { scan: 54, shift: 0 },
+    '@': { scan: 46, shift: 0 },
+    '+': { scan: 40, shift: 0 },
+    '=': { scan: 53, shift: 0, release: '+' },
+    '-': { scan: 43, shift: 0, release: '_' },
+    '_': { scan: 57, shift: 0 },
+    ':': { scan: 45, shift: 0 },
+    '[': { scan: 45, shift: 1 },
+    ';': { scan: 50, shift: 0, release: ':' },
+    ']': { scan: 50, shift: 1 },
+    ',': { scan: 47, shift: 0 },
+    '<': { scan: 47, shift: 1 },
+    '.': { scan: 44, shift: 0 },
+    '>': { scan: 44, shift: 1 },
+    '/': { scan: 55, shift: 0 },
+    '?': { scan: 55, shift: 1 },
+    '\\': { scan: 48 },
+    'F1': { scan: 4 },
+    'F2': { scan: 4, shift: 1 },
+    'F3': { scan: 5 },
+    'F4': { scan: 5, shift: 1 },
+    'F5': { scan: 6 },
+    'F6': { scan: 6, shift: 1 },
+    'F7': { scan: 3 },
+    'F8': { scan: 3, shift: 1 },
+};
 
 let keys: number[] = [];
-
+let lastKeyDown: Date = new Date(0);
+let lastKeyUp: Date = new Date(0);
+let lastKeyUpScan: number = 64;
 let cpuWorker: Worker;
 
 class C64keymapper {
-
     constructor(worker: Worker) {
-        document.addEventListener("keydown", C64keyEvent);
-        document.addEventListener("keyup", C64keyEvent);
+        document.addEventListener("keydown", C64keyEvent, true);
+        document.addEventListener("keyup", C64keyEvent, true);
         cpuWorker = worker;
+        document.addEventListener("input", C64inputEvent);
+        document.getElementById("return")?.addEventListener("click", C64ReturnClicked);
     }
 }
 
+function C64ReturnClicked(ev: Event) {
+  let c : string = "Enter";
+  let evt = new KeyboardEvent("keydown", {key: c});
+  C64keyEventEx(evt);
+  evt = new KeyboardEvent("keyup", {key: c});
+  C64keyEventEx(evt);
+}
+
+function C64inputEvent(this: HTMLElement, ev: Event): any {
+  let input: InputEvent = <InputEvent>ev;
+  let data: string|null = input.data;
+
+  // // log it
+  // let date = new Date();
+  // let msg = (date.getSeconds()+date.getMilliseconds()/1000) + 
+  //    " input data=" + input.data +
+  //    //" xfer=" + input.dataTransfer +
+  //    " type=" + input.inputType +
+  //    " comp=" + input.isComposing;
+  // const log: HTMLElement | null = document.getElementById("result");
+  // if (log)
+  //     log.innerHTML = log.innerHTML + "<br>" + msg;
+  //console.log("input " + data);
+
+  // remove whatever is typed from input field
+  let clear: boolean = (<HTMLInputElement>document.getElementById("clear input")).checked;
+  if (clear)
+    (<HTMLInputElement>document.getElementById("input")).value = "";
+
+  // send each key to keydown/keyup handler
+  let i;
+  for (i=0; !input.isComposing && data != null && i<data.length; ++i) {
+    let c = data[i];
+    if (c == '\n')
+      c = 'Enter';
+    let evt = new KeyboardEvent("keydown", {key: c});
+    C64keyEventEx(evt);
+    evt = new KeyboardEvent("keyup", {key: c});
+    C64keyEventEx(evt);
+  }
+}
+
 function C64keyEvent(event: KeyboardEvent): boolean {
-    //console.log(event);
-    let modifiers = (event.metaKey ? '1' : '0') + (event.altKey ? '1' : '0') + (event.ctrlKey ? '1' : '0') + (event.shiftKey ? '1' : '0');
-    let keyCode = event.keyCode;
-    if (keyCode == 0) { // Firefox Android has some missing keyCodes
-        if (event.key == "'")
-            keyCode = 222;
-        else if (event.key == '"')
-            keyCode = 222;
-        else if (event.key == "-")
-            keyCode = 189;
-        else if (event.key == "_")
-            keyCode = 189;
+  let result: boolean = C64keyEventEx(event);
+  if (!result)
+  {
+    event.preventDefault(); // disable all keys default actions (as allowed by OS and user agent)
+    event.stopPropagation();  
+  }
+  return result;
+}
+
+function C64keyEventEx(event: KeyboardEvent): boolean {
+    let i: number;    
+    let scan : number = 64;
+    let key : any = keyDictionary[event.key];
+    if (key == null)
+      key = keyDictionary[event.code];
+    if (key != null)
+      scan = key.scan;
+    let release = key?.release;
+
+    switch (key?.shift)
+    {
+      case 0: // delete shift
+        i = keys.indexOf(keyDictionary['ShiftLeft'].scan);
+        if (i >= 0)
+          keys.splice(i, 1);
+        i = keys.indexOf(keyDictionary['ShiftRight'].scan);
+        if (i >= 0)
+          keys.splice(i, 1);
+        break;
+      case 1: // add shift
+        if (keys.indexOf(keyDictionary['ShiftLeft'].scan) < 0
+            && keys.indexOf(keyDictionary['ShiftRight'].scan) < 0)
+          keys.push(keyDictionary['ShiftLeft'].scan);
+        break;
     }
-    let scan = keyCodeToCBMScan[event.shiftKey ? 1 : 0][keyCode];
-    if (event.code == "ShiftRight") // differentiate Right from Left for Commodore
-        scan = 52; // Right Shift
-    //let msg = event.type + " " + event.keyCode + " " + event.code + " " + event.key + " " + modifiers + " " + scan;
-    //console.log(msg);
-    // scan = (scan & 255);
+
+    // log it
+    // let date = new Date();
+    // let modifiers = (event.metaKey ? '1' : '0') + (event.altKey ? '1' : '0') + (event.ctrlKey ? '1' : '0') + (event.shiftKey ? '1' : '0');
+    // let msg = (date.getSeconds()+date.getMilliseconds()/1000) + 
+    //   " " + event.type + " keyCode=" + event.keyCode + " code=" + event.code + " key=" + event.key + " modifiers=" + modifiers + " scan=" + scan;
+    // //console.log(msg);
+    // const log: HTMLElement | null = document.getElementById("result");
+    // if (log)
+    //   log.innerHTML = log.innerHTML + "<br>" + msg;
+    //console.log(event.type + " " + event.key + " " + event.code + " " + scan);
+
     if (event.type == "keydown") {
-        if (scan != 64 && keys.indexOf(scan) < 0)
+        if (scan != 64) {
+          if (keys.indexOf(scan) < 0) {
+            if (scan == lastKeyUpScan)
+            {
+              while (new Date().valueOf() - lastKeyUp.valueOf() < 20)
+                ; // busy loop so C64 gets the key release in 1/60th of a second (16.67ms) round up for good measure
+            }
             keys.push(scan);
+            lastKeyDown = new Date();
+          }
+        }
         else if (event.code == "F9")
             toggleAbout();
     }
     else if (event.type == "keyup") {
-        let i = keys.indexOf(scan);
-        if (i < 0 && !event.shiftKey) // did we get keyup for unshifted version of keydown?  keyCode wouldn't match
-            i = keys.indexOf(keyCodeToCBMScan[1][event.keyCode]);
-        if (i >= 0)
-            keys.splice(i,1);
+        i = keys.indexOf(scan);
+        if (i < 0 && !event.shiftKey && release != null) // did we get keyup for unshifted version of keydown and keyCode did not match
+            i = keys.indexOf(keyDictionary[release].scan);
+        if (i >= 0) {
+            while (new Date().valueOf() - lastKeyDown.valueOf() < 20)
+              ; // busy loop so C64 gets the key in 1/60th of a second (16.67ms) round up for good measure
+            lastKeyUpScan = keys.splice(i,1)[0];
+            lastKeyUp = new Date();
+        }
         if (keys.length > 0 && !event.shiftKey) {
             // browser bug or feature: pressing both shift keys, releasing both only gets one release
             // if no shift keys reported, make sure we lift keys from our array
@@ -215,11 +356,8 @@ function C64keyEvent(event: KeyboardEvent): boolean {
 
     // make a copy of keys, into sendkeys so can add/remove shift as needed
     let sendkeys : number[] = [];
-    let i: number;
     for (i = 0; i < keys.length; ++i)
         sendkeys[i] = keys[i];
-
-    //console.log(keys.toString());
 
     for (i = 0; i < sendkeys.length; ++i) {
         let left = sendkeys.indexOf(15);
@@ -248,16 +386,7 @@ function C64keyEvent(event: KeyboardEvent): boolean {
     //console.log(sendkeys.toString());
     cpuWorker.postMessage({ keys: sendkeys.toString() });
 
-    // const log : HTMLElement | null = document.getElementById("log");
-    // if (log)
-    //     log.innerHTML = keys.toString();
-
-    if (scan != 64)
-    {
-      event.preventDefault(); // disable all keys default actions (as allowed by OS and user agent)
-      event.stopPropagation();  
-    }
-    return false;
+  return (scan == 64);
 }
 
 // c64-main-ui.ts - Commodore 64 display drawing
@@ -321,8 +450,7 @@ function canvasClick(event: Event) {
   event.stopPropagation();
   if (about_active)
     window.open("https://github.com/davervw/ts-emu-c64/blob/master/README.md");
-  else
-    toggleAbout();
+  toggleAbout();
 }
 
 var w: Worker | undefined; // worker
