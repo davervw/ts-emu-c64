@@ -1,7 +1,7 @@
 # ts-emu-c64
 TypeScript implementation of C64 Emulation (Commodore 64)
 
-Try it out -> https://davervw.github.io/ts-emu-c64/v0.1-alpha-release/
+Try it out -> http://c64emu.davevw.com
 
 This project began as a port of my text mode 6502/C64 emulator [simple-emu-c64](https://github.com/davervw/simple-emu-c64) from C# to TypeScript, and is a learning experience with TypeScript/JavaScript.
 
@@ -21,6 +21,6 @@ The release requires index.html, the *.js files, and FireFox is the recommended 
 
 ### Known Issues ###
 
->Because Ctrl+W closes the web browser with Firefox, Alt is implemented as the Commodore Key.  Known bug (feature?) with Firefox.
+>Because Ctrl+W closes the web browser with Firefox/Chrome, Alt is implemented as the Commodore Key.  Known bug (feature?) with Firefox.
 
 >Keyboard emulation isn't great with Google Chrome/Chromium currently.   The web client acts blocked while a key is down and doesn't paint on screen until you let go.
