@@ -1301,6 +1301,10 @@ class C64Memory implements Memory {
             return 0xFF;
     }
 
+    upperLower(): boolean {
+        return (this.io[0x18] & 2) != 0;
+    }
+
     set(addr: number, value: number): void {
         if (addr <= this.ram.length - 1  // note: handles option to have less than 64K RAM
             && (
@@ -1317,7 +1321,7 @@ class C64Memory implements Memory {
                     let offset = addr - 1024;
                     let col = offset % 40;
                     let row = Math.floor(offset / 40);
-                    this.plotter.draw(value, col*8, row*8, this.io[0x800 + offset], this.io[0x21]); // char, x, y, fg, bg
+                    this.plotter.draw(value, this.upperLower(), col*8, row*8, this.io[0x800 + offset], this.io[0x21]); // char, x, y, fg, bg
                 }
             }
         }
@@ -1342,24 +1346,29 @@ class C64Memory implements Memory {
                 if (offset < 1000) { // screen memory // TODO: check registers
                     let col = offset % 40;
                     let row = Math.floor(offset / 40);
-                    this.plotter.draw(this.ram[1024+offset], col*8, row*8, value, this.io[0x21]); // char x, y, fg, bg
+                    this.plotter.draw(this.ram[1024+offset], this.upperLower(), col*8, row*8, value, this.io[0x21]); // char x, y, fg, bg
                 }
             }
         }
         else if (addr == 0xDC00) // write keyboard scan column
             this.io[addr - this.io_addr] = value;
+        else if (addr == 0xD018) { // VIC-II Chip Memory Control Register
+            this.io[addr - this.io_addr] = value;
+            this.redrawScreen(); // upper to lower or lower to upper
+        }
     }
 
     redrawScreen() {
         let addr: number;
 
         let bg = this.io[0x21];
+        let mixedcase = this.upperLower();
         // redraw screen
         for (addr = 1024; addr < 2024; ++addr) {
             let offset = addr - 1024;
             let col = offset % 40;
             let row = Math.floor(offset / 40);
-            this.plotter.draw(this.ram[addr], col * 8, row * 8, this.io[0x800 + offset], bg); // char, x, y, fg, bg
+            this.plotter.draw(this.ram[addr], mixedcase, col * 8, row * 8, this.io[0x800 + offset], bg); // char, x, y, fg, bg
         }
     }
 }
@@ -2061,9 +2070,9 @@ class CharPlotter
         this.worker = worker;
     }
 
-    public draw(c: number, x: number, y: number, fg: number, bg: number)
+    public draw(c: number, mixedcase: boolean, x: number, y: number, fg: number, bg: number)
     {
-        let j = c * 8;
+        let j = (c + (mixedcase ? 256 : 0)) * 8;
         let chardata = [
             char_rom[j],
             char_rom[j+1],
