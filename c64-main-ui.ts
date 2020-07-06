@@ -145,8 +145,8 @@ let keyDictionary: { [key: string]: any } = {
     'Pause': { scan: 63 },  // Stop
     'ShiftLeft': { scan: 15 },
     'ShiftRight': { scan: 52 },
-    'CtrlLeft': { scan: 61 },  // Commodore
-    'CtrlRight': { scan: 61 },  // Commodore
+    'ControlLeft': { scan: 61 },  // Commodore
+    'ControlRight': { scan: 61 },  // Commodore
     'AltLeft': { scan: 61 },  // Commodore
     'AltRight': { scan: 61 },  // Commodore
     'Backspace': { scan: 0 },
