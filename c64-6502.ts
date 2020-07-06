@@ -30,7 +30,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-let scancodes : string[] = [];
+let scancodes_queue : string[] = []; // queue of string, each is comma separated list of scan codes
+let scancodes_irq : string[] = []; // array of scan codes, used for full IRQ cycle
 let basic_rom: number[] = [];
 let char_rom: number[] = [];
 let kernal_rom: number[] = [];
@@ -124,6 +125,18 @@ class Emu6502 {
         return Emu6502.toHex(value, 4);
     }
 
+    getNextScanCodes()
+    {
+        if (scancodes_queue.length > 0) {
+            let s = scancodes_queue.shift();
+            if (s==null || s.length == 0)
+                scancodes_irq = [];
+            else
+                scancodes_irq = s.split(',');
+        }
+        // else keep same ones going, either still pressed or not pressed
+    }
+
     async Execute(addr: number) {
         let conditional: boolean;
         let bytes: number;
@@ -138,6 +151,7 @@ class Emu6502 {
                 let timer_read = Date.now();
                 if (!this.I && (timer_read - timer_then) >= interrupt_time) // IRQ
                 {
+                    this.getNextScanCodes(); // each IRQ gets new buffered scan codes to help guarantee keystrokes get through
                     timer_then = timer_read;
                     this.Push(this.HI(this.PC));          
                     this.Push(this.LO(this.PC));          
@@ -1267,8 +1281,8 @@ class C64Memory implements Memory {
             {
                 let value = 0;
                 let i = 0;
-                for (i=0; i<scancodes.length; ++i) {
-                    let scancode = parseInt(scancodes[i]);
+                for (i=0; i<scancodes_irq.length; ++i) {
+                    let scancode = parseInt(scancodes_irq[i]);
                     if (scancode < 64) {
                         let col = Math.floor(scancode / 8);
                         let row = scancode % 8;
@@ -2082,10 +2096,8 @@ onmessage = function(e : MessageEvent) {
     //console.log("worker received: " + e.data)
     if (typeof e.data == "object") {
         if (typeof e.data.keys == "string") {
-            if (e.data.keys.length == 0)
-                scancodes = [];
-            else
-                scancodes = e.data.keys.split(',');
+            //console.log("rcvd keys: " + e.data.keys);
+            scancodes_queue.push(e.data.keys);
         }
         else if (e.data.basic && e.data.kernal && e.data.char)
         {
