@@ -2,8 +2,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -36,6 +36,7 @@ let basic_rom: number[] = [];
 let char_rom: number[] = [];
 let kernal_rom: number[] = [];
 let redraw_screen: boolean = true;
+let autoexec: Uint8Array = new Uint8Array(0);
 
 interface Memory {
     get(i: number): number;
@@ -68,6 +69,8 @@ class Emu6502 {
     protected execute: (context: any) => boolean;
     protected context: any;
 
+    private roms_loaded : boolean = false;
+
     public constructor(memory: Memory, execute: (context: any) => boolean, context: any) {
         this.memory = memory;
         this.execute = execute;
@@ -77,7 +80,7 @@ class Emu6502 {
 
     public async ResetRun() {
         // wait for ROMs
-        while (true)
+        while (!this.roms_loaded)
         {
             let missing_roms : boolean = false;
             if (kernal_rom.length != 8192)
@@ -92,7 +95,7 @@ class Emu6502 {
                 await new Promise(r => setTimeout(r, 1000));
             }
             else
-                break;
+                this.roms_loaded = true;
         }
 
         let addr: number = (this.memory.get(0xFFFC) | (this.memory.get(0xFFFD) << 8)); // JMP(RESET)
@@ -1146,8 +1149,8 @@ class Emu6502 {
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -1160,10 +1163,10 @@ class Emu6502 {
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -1175,22 +1178,9 @@ class Emu6502 {
 ////////////////////////////////////////////////////////////////////////////////
 //
 // This is a 6502 Emulator, designed for running Commodore 64 text mode, 
-//   with only a few hooks: CHRIN-$FFCF/CHROUT-$FFD2/COLOR-$D021/199/646
+//   with only a few hooks, and limited memory mapped I/O,
 //   and implemented RAM/ROM/IO banking (BASIC could live without these)
-//   additional hooks added: READY/GETIN/STOP (could live without these)
 //   READY hook is used to load program specified on command line
-// Useful as is in current state as a simple 6502 emulator
-//
-// LIMITATIONS:
-// Only keyboard/console I/O.  No text pokes, no graphics.  Just stdio.  
-//   No key scan codes (197), or keyboard buffer (198, 631-640), but INPUT S$ works
-// No keyboard color switching.  No border displayed.  No border color.
-// No screen editing (gasp!) Just short and sweet for running C64 BASIC in 
-//   terminal/console window via 6502 chip emulation in software
-// No PETSCII graphic characters, only supports printables CHR$(32) to CHR$(126), 
-//   and CHR$(147) clear screen, home/up/down/left/right, reverse on/off
-// No timers.  No interrupts except BRK.  No NMI/RESTORE key.  ESC is STOP key.
-// No loading of files implemented.
 //
 //   $00         (data direction missing)
 //   $01         Banking implemented (tape sense/controls missing)
@@ -1198,24 +1188,18 @@ class Emu6502 {
 //   $A000-$BFFF BASIC ROM
 //   $A000-$BFFF Banked LORAM (may not be present based on RAM allocated)
 //   $C000-$CFFF RAM
-//   $D000-$D7FF (I/O missing, reads as zeros)
-//   $D800-$DFFF VIC-II color RAM nybbles in I/O space (1K x 4bits)
+//   $D000-$D7FF (most I/O missing, reads as zeros)
+//   $D018       VIC-II Chip Memory Control Register (e.g. graphics vs. lowercase characters)
+//   $D020-$D021 screen border, background
+//   $D800-$D9FF VIC-II color RAM nybbles in I/O space (1K x 4bits)
+//   $DA00-$DFFF (more I/O space mostly missing, reads as zeros)
+//   $DC00-$DC01 keyboard I/O
 //   $D000-$DFFF Banked RAM (may not be present based on RAM allocated)
 //   $D000-$DFFF Banked Character ROM
 //   $E000-$FFFF KERNAL ROM
 //   $E000-$FFFF Banked HIRAM (may not be present based on RAM allocated)
 //
-// Requires user provided Commodore 64 BASIC/KERNAL ROMs (e.g. from VICE)
-//   as they are not provided, others copyrights may still be in effect.
-//
 ////////////////////////////////////////////////////////////////////////////////
-
-//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//uncomment for Commodore foreground, background colors and reverse emulation
-//#define CBM_COLOR
-//-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-/////////////////////////////////////////////////////////////////////
 
 class C64Memory implements Memory {
     protected ram: number[];
@@ -1413,40 +1397,12 @@ class EmuC64 {
     //   $AD8A = Evaluate expression, check data type
     //   $B7F7 = Convert floating point to 2 byte integer Y/A
     ExecutePatch(context: any): boolean {
-        // if (PC == 0xFFD2) // CHROUT
-        // {
-        //     CBM_Console.WriteChar((char)A);
-        //     // fall through to draw character in screen memory too
-        // }
-        // else if (PC == 0xFFCF) // CHRIN
-        // {
-        //     SetA(CBM_Console.ReadChar());
-        //     C = false;
-
-        //     return ExecuteRTS();
-        // }
-        // else if (PC == 0xFFE4) // GETIN
-        // {
-        //     //BASIC TEST:
-        //     //10 GET K$ : REM GETIN
-        //     //20 IF K$<> "" THEN PRINT ASC(K$)
-        //     //25 IF K$= "Q" THEN END
-        //     //30 GOTO 10
-
-        //     C = false;
-        //     SetA(CBM_Console.GetIn());
-        //     if (A != 0)
-        //         X = A; // observed this side effect from tracing code, so replicating
-
-        //     return ExecuteRTS();
-        // }
-        // else if (PC == 0xFFE1) // STOP
-        // {
-        //     Z = CBM_Console.CheckStop();
-
-        //     return ExecuteRTS();
-        // }
-        // else
+        if (context.StartupPRG == "" && autoexec.length > 0)
+        {
+            context.StartupPRG = "AUTOEXEC";
+            context.cpu.PC = (context.memory.get(0xFFFC) | (context.memory.get(0xFFFD) << 8)); // JMP(RESET)
+            return true;
+        }
         if (context.cpu.PC == 0xFFBA) // SETLFS
         {
             context.FileNum = context.cpu.A;
@@ -1534,6 +1490,7 @@ class EmuC64 {
                         // so doesn't repeat
                         context.StartupPRG = "";
                         context.LOAD_TRAP = -1;
+                        autoexec = new Uint8Array(0);
 
                         return true; // overriden, and PC changed, so caller should reloop before execution to allow breakpoint/trace/ExecutePatch/etc.
                     }
@@ -1545,6 +1502,7 @@ class EmuC64 {
                 }
 
                 context.StartupPRG = "";
+                autoexec = new Uint8Array(0);
 
                 if (is_basic) {
                     // UNNEW that I used in late 1980s, should work well for loading a program too, probably gleaned from BASIC ROM
@@ -1642,6 +1600,15 @@ class EmuC64 {
 
     protected OpenRead(filename: string) : number[]
     {
+        if (filename == "AUTOEXEC" && autoexec.length != 0)
+        {
+            var file : number[] = [];
+            let i;
+            for (i=0; i<autoexec.length; ++i)
+                file[i] = autoexec[i];
+            return file;
+        }
+
         var files : [string, number[]][] = [
             ["LOOP", [0x01, 0x10, 0x0a, 0x10, 0x0a, 0x00, 0x89, 0x20, 0x31, 0x30, 0x00, 0x00, 0x00, 0x00]],
             ["GUESS1", [0x01, 0x08, 0x2d, 0x08, 0x0a, 0x00, 0x99, 0x20, 0x22, 0x54, 0x48, 0x49, 0x4e, 0x4b, 0x20, 0x4f,
@@ -1969,8 +1936,8 @@ class EmuC64 {
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -2117,6 +2084,10 @@ onmessage = function(e : MessageEvent) {
         else if (e.data.redraw == true)
         {
             redraw_screen = true;            
+        }
+        else if (e.data.autoexec)
+        {
+            autoexec = e.data.autoexec;
         }
     }
     //postMessage(["ack"], "onmessage");

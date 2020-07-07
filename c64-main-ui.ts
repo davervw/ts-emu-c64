@@ -2,8 +2,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -398,8 +398,8 @@ function C64keyEventEx(event: KeyboardEvent): boolean {
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -491,8 +491,8 @@ if (startWorker() && w != null) // start worker
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -595,8 +595,8 @@ function drawC64Char(ctx: CanvasRenderingContext2D, chardata: number[], x: numbe
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// simple-emu-c64
-// C64/6502 Emulator for Microsoft Windows Console
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
 //
 // MIT License
 //
@@ -638,12 +638,22 @@ function dropHandler(ev: any) {
       if (ev.dataTransfer.items[i].kind === 'file') {
         var file = ev.dataTransfer.items[i].getAsFile();
         console.log('... file[' + i + '].name = ' + file.name);
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          if (e.target != null) {
+            var array = new Uint8Array(<ArrayBuffer>(e.target.result));
+            cpuWorker.postMessage({ autoexec: array });
+          }
+        }
+        reader.readAsArrayBuffer(file);
+        break; // only support one file
       }
     }
   } else {
     // Use DataTransfer interface to access the file(s)
     for (var i = 0; i < ev.dataTransfer.files.length; i++) {
       console.log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
+      break; // only support one file
     }
   }
 }
