@@ -1355,6 +1355,10 @@ class C64Memory implements Memory {
             this.plotter.draw(this.ram[addr], mixedcase, col * 8, row * 8, this.io[0x800 + offset], bg); // char, x, y, fg, bg
         }
     }
+
+    getWorker(): Worker {
+        return this.plotter.getWorker();
+    }
 }
 
 class EmuC64 {
@@ -1910,24 +1914,18 @@ class EmuC64 {
     }
 
     protected FileSave(filename: string, addr1: number, addr2: number): boolean {
-        // try
-        // {
-        //     if (!filename.ToLower().EndsWith(".prg"))
-        //         filename += ".prg";
-        //     using (FileStream stream = File.OpenWrite(filename))
-        //     {
-        //         stream.WriteByte(LO(addr1));
-        //         stream.WriteByte(HI(addr1));
-        //         for (ushort addr = addr1; addr <= addr2; ++addr)
-        //             stream.WriteByte(memory[addr]);
-        //         stream.Close();
-        //         return true;
-        //     }
-        // }
-        // catch
-        {
-            return false;
-        }
+        if (filename.length == 0)
+            filename = "FILENAME";
+        if (!filename.toUpperCase().endsWith(".PRG"))
+            filename += ".PRG";
+        var stream: number[] = [];
+        stream.push(this.cpu.LO(addr1));
+        stream.push(this.cpu.HI(addr1));
+        var addr: number
+        for (addr = addr1; addr <= addr2; ++addr)
+            stream.push(this.memory.get(addr));
+        this.memory.getWorker().postMessage(["save", filename, stream]);
+        return true;
     }
 }
 
@@ -2057,6 +2055,11 @@ class CharPlotter
     public border(color: number)
     {
         this.worker.postMessage(["border", color]);
+    }
+
+    public getWorker(): Worker
+    {
+        return this.worker;
     }
 }
 

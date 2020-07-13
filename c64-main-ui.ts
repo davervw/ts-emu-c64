@@ -450,12 +450,20 @@ function toggleAbout() {
   }
 }
 
-function canvasClick(event: Event) {
+function canvasClick(event: MouseEvent) {
   event.preventDefault();
   event.stopPropagation();
   if (about_active)
-    window.open("https://github.com/davervw/ts-emu-c64/blob/master/README.md");
-  toggleAbout();
+  {
+    if (event.clientX >= 48 && event.clientY >= 48 && event.clientY < (200/3) + 48) // top third, not border
+      window.open("https://github.com/davervw/ts-emu-c64/blob/master/README.md");
+    else if (event.clientX >= 48 && event.clientX <= (320/3) + 48 && event.clientY >= (200/3*2) + 48 && event.clientY < 200+48) // SW corner, not border
+      toggleKeys();
+    else
+      toggleAbout();
+  }
+  else
+    toggleAbout();
 }
 
 var w: Worker | undefined; // worker
@@ -471,6 +479,8 @@ function startWorker() {
         drawC64Char(ctx, event.data[1], event.data[2], event.data[3], event.data[4], event.data[5]);
       else if (event.data[0] == "border")
         drawC64Border(canvas, event.data[1]);
+      else if (event.data[0] == "save")
+        startSave(event.data[1], event.data[2]);
     };
     return true;
   } else {
@@ -485,6 +495,106 @@ if (startWorker() && w != null) // start worker
 {
   w.postMessage({ basic: c64_basic_rom, char: c64_char_rom, kernal: c64_kernal_rom });
   let c64keys = new C64keymapper(w); // start keyboard driver
+
+  hideSave();
+
+  let saveButton = document.getElementById("save");
+  saveButton?.addEventListener("click", fileSave);
+}
+
+var saveStream: number[] = [];
+
+var saveLink: string | null = null;
+
+var keysVisible = false;
+
+function toggleKeys() {
+  if (keysVisible)
+    hideKeys();
+  else
+    showKeys();
+}
+
+function hideKeys() {
+  let saveControls = document.getElementById("key controls");
+  if (saveControls) {
+    saveControls.style.visibility = "collapse";
+    keysVisible = false;
+    about_img.src = "emuc64-about.png";
+  }
+}
+
+function showKeys() {
+  let saveControls = document.getElementById("key controls");
+  if (saveControls) {
+    saveControls.style.visibility = "visible";
+    keysVisible = true;
+    about_img.src = "emuc64-about-mobilekbd.png";
+  }
+}
+
+function hideSave() {
+  let saveControls = document.getElementById("save controls");
+  if (saveControls)
+    saveControls.style.visibility = "collapse";
+}
+
+function showSave() {
+  let saveControls = document.getElementById("save controls");
+  if (saveControls)
+    saveControls.style.visibility = "visible";
+}
+
+function fileSave(e: Event)
+{
+  let desc = document.getElementById("filename");
+  var filename = desc ? desc.innerText:'FILENAME.PRG';
+
+  // download file
+  // modified from https://stackoverflow.com/questions/54567948/how-to-show-pdf-in-browser-using-byte-array-of-pdf-in-javascript
+  var bytes = new Uint8Array(saveStream.length);
+  var i;
+  for (i=0; i<saveStream.length; ++i)
+    bytes[i] = saveStream[i];
+  var blob = new File([bytes], filename, {type:"application/x-c64-pdb"});
+  saveLink = window.URL.createObjectURL(blob);
+  var new_window = window.open(saveLink, filename, '');
+  if (new_window)
+    new_window.addEventListener("load", finishSave);
+  else
+    finishSave();
+
+  if (desc)
+    desc.innerText = "";
+
+  saveStream = []; // throw away bytes
+
+  // toggle save button hidden
+  hideSave();
+}
+
+// cleanup after createObjectURL
+function finishSave()
+{
+  if (saveLink)
+    window.URL.revokeObjectURL(saveLink);
+  saveLink = null;
+}
+
+function startSave(filename: string, stream: number[])
+{
+  finishSave(); // close previous save if in progress
+
+  // toggle save button visible
+  showSave();
+
+  saveStream = stream;
+
+  let desc = document.getElementById("filename");
+  if (desc)
+    desc.innerText = filename;
+
+  saveStream = stream;
 }
 
 // c64-draw.ts - Commodore 64 display drawing

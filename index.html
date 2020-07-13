@@ -23,10 +23,30 @@
       Your browser does not support the HTML5 canvas tag.
     </canvas>
     <br>
-    <input id="input" style="width:200px"/>  <!-- for input via mobile browser, TV, clipboard, etc. -->
-    <button id="return">Return</button>
-    <input id="clear input" type="checkbox" checked><label for="clear input">Clear Input</label></input>
-    <br>
+
+    <table>
+      <tr id="save controls" style="visibility: collapse">
+        <td>
+          <p id="filename">Filename</p>
+        </td>
+        <td>
+          <button id="save">Download</button>
+        </td>
+      </tr>
+    </table>
+
+    <table>
+      <tr id="key controls" style="visibility: collapse;">
+        <td>
+          <label style="font-family: Lucida Console, Monaco, monospace;">Mobile:</label>
+          <input id="input" style="width:200px;" /> <!-- for input via mobile browser, TV, clipboard, etc. -->
+          <button id="return" style="font-family: Lucida Console, Monaco, monospace;">Return</button>
+          <input id="clear input" type="checkbox" checked><label for="clear input"
+            style="font-family: Lucida Console, Monaco, monospace;">Clear</label></input>
+        </td>
+      </tr>
+    </table>
+
     <!-- <input id="lshift" type="checkbox"><label for="lshift">LShift</label></input>
     <input id="rshift" type="checkbox"><label for="rshift">RShift</label></input>
     <input id="control" type="checkbox"><label for="control">Control</label></input>
