@@ -1,5 +1,5 @@
 # ts-emu-c64
-TypeScript implementation of C64 Emulation (Commodore 64)
+TypeScript implementation of C64 Emulation (Commodore 64) for Web Browser (e.g. Firefox)
 
 Try it out -> http://c64emu.davevw.com
 
