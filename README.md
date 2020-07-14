@@ -23,7 +23,7 @@ The release requires index.html, the *.js files, the emuc64-about*.png files, an
 
 ### Known Issues ###
 
->Keyboard emulation isn't great with Google Chrome/Chromium currently.   The web client acts blocked while a key is down and doesn't paint on screen until you let go.
+>Keyboard emulation isn't great with Google Chrome/Chromium currently.   The web client acts blocked while a key is down and doesn't paint on screen until you let go.  STOP isn't working with Google Chrome for some reason as well, so careful with recursion.
 
 >Because Ctrl+W closes the web browser with Firefox/Chrome, Alt is implemented as the Commodore Key.  Known bug (feature?) with Firefox/Chrome.
 
