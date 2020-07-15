@@ -155,6 +155,7 @@ let keyDictionary: { [key: string]: any } = {
     'ArrowDown': { scan: 7 },
     'ArrowLeft': { scan: 2, shift: 1 },
     'ArrowRight': { scan: 2 },
+    'PageUp': { scan: 1024+64 },
     '1': { scan: 56, shift: 0 },
     '2': { scan: 59, shift: 0, release: '@' },
     '3': { scan: 8, shift: 0 },
@@ -354,36 +355,8 @@ function C64keyEventEx(event: KeyboardEvent): boolean {
     }
   }
 
-  // make a copy of keys, into sendkeys so can add/remove shift as needed
-  let sendkeys: number[] = [];
-  for (i = 0; i < keys.length; ++i)
-    sendkeys[i] = keys[i];
-
-  for (i = 0; i < sendkeys.length; ++i) {
-    let left = sendkeys.indexOf(15);
-    let right = sendkeys.indexOf(52);
-    let scancode = sendkeys[i];
-    if ((scancode & 256) != 0 && left < 0 && right < 0) {
-      sendkeys.unshift(15);
-      sendkeys[++i] -= 256;
-    }
-    if (scancode & 512) {
-      if (left >= 0) {
-        sendkeys.splice(left, 1);
-        if (left <= i)
-          --i;
-      }
-      if (right >= 0) {
-        sendkeys.splice(right, 1);
-        if (left <= i)
-          --i;
-      }
-      sendkeys[i] -= 512;
-    }
-  }
-
   //console.log(sendkeys.toString());
-  let msg = sendkeys.toString();
+  let msg = keys.toString();
   if (msg != last_keys) {
     cpuWorker.postMessage({ keys: msg });
     last_keys = msg;

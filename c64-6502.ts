@@ -1442,6 +1442,8 @@ class EmuC64 {
         this.cpu.ResetRun();
     }
 
+    private NMI = false;
+
     // C64 patches
     //   34/35 ($22/$23) = INDEX, temporary BASIC pointer, set before CLR
     //   43/44 = start of BASIC program in RAM
@@ -1454,6 +1456,25 @@ class EmuC64 {
     //   $AD8A = Evaluate expression, check data type
     //   $B7F7 = Convert floating point to 2 byte integer Y/A
     ExecutePatch(context: any): boolean {
+        let found_NMI = false;
+        for (let i=0; !found_NMI && i < scancodes_irq.length; ++i)
+            if (scancodes_irq[i] == (1024+64).toString())
+                found_NMI = true;
+        if (context.NMI)
+        {
+            if (!found_NMI)
+                context.NMI = false;
+        }
+        else if (found_NMI) // newly pressed, detected edge
+        {
+            context.NMI = true; // set so won't trigger again until cleared
+            context.cpu.Push(context.cpu.HI(context.cpu.PC));
+            context.cpu.Push(context.cpu.LO(context.cpu.PC));
+            context.cpu.PHP();
+            context.cpu.PC = (context.memory.get(0xFFFA) | (context.memory.get(0xFFFB) << 8)); // JMP(NMI)
+            return true; // overriden, and PC changed, so caller should reloop before execution to allow breakpoint/trace/ExecutePatch/etc.
+        }
+
         if (context.StartupPRG == "" && autoexec.length > 0)
         {
             context.StartupPRG = "AUTOEXEC";
