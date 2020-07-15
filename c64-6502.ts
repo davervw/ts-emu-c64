@@ -37,6 +37,8 @@ let char_rom: number[] = [];
 let kernal_rom: number[] = [];
 let redraw_screen: boolean = true;
 let autoexec: Uint8Array = new Uint8Array(0);
+let timerA_enabled: boolean = false;
+let timerA_triggered: boolean = false;
 
 interface Memory {
     get(i: number): number;
@@ -140,11 +142,26 @@ class Emu6502 {
         // else keep same ones going, either still pressed or not pressed
     }
 
+    isTimerAStarted(): boolean {
+        let bank = this.memory.get(1);
+        let reset_bank = false;
+        let result = true;
+        if ((bank & 3) == 0 || (bank & 4) == 0) { // check if IO is banked out
+            reset_bank = true; // remember to restore
+            this.memory.set(1, 7); // necessary to switch bank to IO
+        }
+        result = (this.memory.get(0xDC0E) & 1) == 1; // Control Register A, Timer Started
+        if (reset_bank)
+            this.memory.set(1, bank); // need to restore banking state
+        return result;
+    }
+
     async Execute(addr: number) {
         let conditional: boolean;
         let bytes: number;
         let interrupt_time = (1 / 60) * 1000; // 60 times per second, converted to milliseconds
         let timer_then = Date.now();
+        let timer2 = timer_then;
 
         this.PC = addr;
 
@@ -152,15 +169,29 @@ class Emu6502 {
 
             while (true) {
                 let timer_read = Date.now();
-                if (!this.I && (timer_read - timer_then) >= interrupt_time) // IRQ
+                let irq = false;
+                if ((timer_read - timer_then) >= interrupt_time) // 1/60th of a second
                 {
-                    this.getNextScanCodes(); // each IRQ gets new buffered scan codes to help guarantee keystrokes get through
-                    timer_then = timer_read;
-                    this.Push(this.HI(this.PC));          
-                    this.Push(this.LO(this.PC));          
-                    this.PHP();
-                    this.I = true;
-                    this.PC = this.memory.get(0xFFFE) | (this.memory.get(0xFFFF) << 8);
+                    if (!this.I) { // if IRQ not disabled
+                        timer_then = timer_read;
+                        this.getNextScanCodes(); // each IRQ gets new buffered scan codes to help guarantee keystrokes get through
+                        if (timerA_enabled && this.isTimerAStarted()) { // timer hardware enabled?
+                            this.Push(this.HI(this.PC));          
+                            this.Push(this.LO(this.PC));          
+                            this.PHP();
+                            this.I = true;
+                            this.PC = this.memory.get(0xFFFE) | (this.memory.get(0xFFFF) << 8);
+                            irq = true;
+                            timer2 = timer_read;
+                            timerA_triggered = true;
+                        }
+                    }
+
+                    if (!irq && ((timer_read - timer2))) // yield every 1/60th of a second even if irq didn't happen
+                    {
+                        await new Promise(r => setTimeout(r, 0));
+                        timer2 = timer_read;
+                    }
                 }
                 if (this.exit)
                     return;
@@ -1276,6 +1307,15 @@ class C64Memory implements Memory {
                 }
                 return value ^ 0xFF;
             }
+            else if (addr == 0xDC0D) { // Interrupt Control Register
+                if (timerA_triggered)
+                {
+                    timerA_triggered = false;
+                    return 0x81;
+                }
+                else
+                    return 0;
+            }
             else
                 return this.io[addr - this.io_addr];
         }
@@ -1335,6 +1375,18 @@ class C64Memory implements Memory {
             }
         }
         else if (addr == 0xDC00) // write keyboard scan column
+            this.io[addr - this.io_addr] = value;
+        else if (addr == 0xDC0D) {
+            switch (value & 0x81) {
+                case 0x81:
+                    timerA_enabled = true;
+                    break;
+                case 0x01:
+                    timerA_enabled = false;
+                    break;
+            }
+        }
+        else if (addr == 0xDC0E) // Control Register A
             this.io[addr - this.io_addr] = value;
         else if (addr == 0xD018) { // VIC-II Chip Memory Control Register
             this.io[addr - this.io_addr] = value;
