@@ -30,8 +30,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// Web UI keyCodeToCBMScan[event.shiftKey ? 1 : 0][event.keyCode] to Commodore 64 scan code translation table
-
 // event.keyCode for typical 101+ PC keyboard
 //+---+---+---+---+---+---+---+---+---+---+---+---+---+                              +-----+-----+-----+
 //|ESC|F1 |F2 |F3 |F4 |F5 |F6 |F7 |F8 |F9 |F10|F11|F12|                              |PtSc |ScLk |Brk  |
@@ -60,11 +58,11 @@
 //    0*8 1*8 2*8 3*8 4*8 5*8 6*8 7*8 K0  K1  K2
 // +0 DEL 3#  5%  7'  9)  +   £|  1!  Hlp ESC Alt
 // +1 RET W   R   Y   I   P   *   LAr 8   +   0
-// +2 Rt  A   D   G   J   L   ;]  Ctl 5   =   -
+// +2 Rt  A   D   G   J   L   ;]  Ctl 5   -   .
 // +3 F7  4$  6&  8(  0   -   Hme 2"  Tab Lf  Up
 // +4 F1  Z   C   B   M   .>  RSh Spc 2   Ent Down
 // +5 F3  S   F   H   K   :[  =   C=  4   6   Lt
-// +6 F5  E   T   U   O   @   UpA Q   6   9   Rt
+// +6 F5  E   T   U   O   @   UpA Q   7   9   Rt
 // +7 Dn  LSh X   V   N   ,<  /?  Stp 1   3   NoScroll
 //
 // NMI RESTORE
