@@ -1335,6 +1335,7 @@ class C64Memory implements Memory {
                 addr < this.io_addr // RAM, including open RAM, and RAM under BASIC
                 || (addr >= this.kernal_addr && addr <= this.kernal_addr + kernal_rom.length - 1) // RAM under KERNAL
                 || (((this.ram[1] & 7) == 0) && addr >= this.io_addr && addr < this.io_addr + this.io.length) // RAM banked in instead of IO
+                || (((this.ram[1] & 4) == 0) && addr >= this.io_addr && addr < this.io_addr + this.io.length) // RAM under CHARROM instead of color RAM
             )
         ) {
             if (this.ram[addr] != value)
