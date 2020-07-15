@@ -1,5 +1,5 @@
 # ts-emu-c64
-TypeScript implementation of C64 Emulation (Commodore 64)
+TypeScript implementation of C64 Emulation (Commodore 64) for Web Browser (e.g. Firefox)
 
 Try it out -> http://c64emu.davevw.com
 
@@ -25,6 +25,6 @@ The release requires index.html, the *.js files, the emuc64-about*.png files, an
 
 >Keyboard emulation isn't great with Google Chrome/Chromium currently.   The web client acts blocked while a key is down and doesn't paint on screen until you let go.  STOP isn't working with Google Chrome for some reason as well, so careful with recursion.
 
->Because Ctrl+W closes the web browser with Firefox/Chrome, Alt is implemented as the Commodore Key.  Known bug (feature?) with Firefox/Chrome.
+>Because Ctrl+W closes the web browser with Firefox/Chrome, Alt is also implemented as the Commodore Key (choose your keystroke wisely!).  Known bug (feature?) with Firefox/Chrome.
 
 ![breadbin](https://github.com/davervw/ts-emu-c64/raw/master/breadbin.jpg)
