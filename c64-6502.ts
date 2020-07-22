@@ -187,11 +187,11 @@ class Emu6502 {
                         }
                     }
 
-                    if (!irq && ((timer_read - timer2))) // yield every 1/60th of a second even if irq didn't happen
-                    {
-                        await new Promise(r => setTimeout(r, 0));
-                        timer2 = timer_read;
-                    }
+                    // if (!irq && ((timer_read - timer2))) // yield every 1/60th of a second even if irq didn't happen
+                    // {
+                    //     await new Promise(r => setTimeout(r, 0));
+                    //     timer2 = timer_read;
+                    // }
                 }
                 if (this.exit)
                     return;
