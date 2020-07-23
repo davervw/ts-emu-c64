@@ -1176,7 +1176,7 @@ class Emu6502 {
     }
 }
 
-// d64.ts - Class D64 - 1541 Disk Driver
+// d64.ts - Class D64 - 1541 Disk Driver - access files, directory from disk image
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1372,6 +1372,23 @@ class D64
             return s;
         }
 
+        public FileTypeString()
+        {
+            switch (this.file_type & 3)
+            {
+                case this.FileType.DEL:
+                    return "DEL";
+                case this.FileType.PRG:
+                    return "PRG";
+                case this.FileType.REL:
+                    return "REL";
+                case this.FileType.SEQ:
+                    return "SEQ";
+                case this.FileType.USR:
+                    return "USR";
+            }
+        }
+
         public toString(): any
         {
             let s = "";
@@ -1387,24 +1404,7 @@ class D64
             while (i < DirStruct.dir_name_size)
                 s += DirStruct.PrintableChar(this.filename[i++]);
             s += " ";
-            switch (this.file_type & 3)
-            {
-                case this.FileType.DEL:
-                    s += "DEL";
-                    break;
-                case this.FileType.PRG:
-                    s += "PRG";
-                    break;
-                case this.FileType.REL:
-                    s += "REL";
-                    break;
-                case this.FileType.SEQ:
-                    s += "SEQ";
-                    break;
-                case this.FileType.USR:
-                    s += "USR";
-                    break;
-            }
+            s += this.FileTypeString();
             return s;
         }
     }
@@ -1472,13 +1472,25 @@ class D64
         return dir;
     }
 
-    public DiskBAMPrintable(field_offset: number, size: number): string
+    public DiskBAMField(field_offset: number, size: number): number[]
     {
-        let s = "";
+        let field: number[] = [];
         let offset = this.GetSectorOffset(this.bam_track, this.bam_sector);
         for (let i = 0; i < size; ++i)
         {
             let value = this.bytes[offset + field_offset + i];
+            field.push(value);
+        }
+        return field;
+    }
+
+    public DiskBAMPrintable(field_offset: number, size: number): string
+    {
+        let field: number[] = this.DiskBAMField(field_offset, size);
+        let s = "";
+        for (let i = 0; i < field.length; ++i)
+        {
+            let value = field[i];
             s += this.DirStruct.PrintableChar(value);
         }
         return s;
@@ -1574,6 +1586,96 @@ class D64
         }
         s += this.BlocksFree() + " BLOCKS FREE.";
         return s;
+    }
+
+    private WriteByte(data: number[], byte: number): number[]
+    {
+        data.push(byte & 0xFF);
+        return data;
+    }
+
+    private WriteBytes(data: number[], bytes: number[]): number[]
+    {
+        for (let i=0; i<bytes.length; ++i)
+            data.push(bytes[i]);
+        return data;
+    }
+
+    private WriteWord(data: number[], word: number): number[]
+    {
+        data.push(word & 0xFF);
+        data.push(word >> 8);
+        return data;
+    }
+
+    private WriteString(data: number[], s: string): number[]
+    {
+        for (let i=0; i<s.length; ++i)
+            data.push(s.charCodeAt(i));
+        return data;
+    }
+
+    // construct a Commodore program that represents the directory contents
+    public GetDirectoryProgram(): Uint8Array
+    {
+        let disk_name = this.DiskBAMField(this.disk_name_offset, this.disk_name_size);
+        let disk_id = this.DiskBAMField(this.disk_id_offset, this.disk_id_size);
+        let dos_type = this.DiskBAMField(this.disk_dos_type_offset, this.disk_dos_type_size);
+
+        let ptr = 0x801;
+        let data = this.WriteWord([], ptr); // start with file size
+        data = this.WriteWord(data, ptr+=0x1E); // next line pointer
+        data = this.WriteWord(data, 0); // line number
+        data = this.WriteByte(data, 18); // RVS
+        data = this.WriteString(data, '"');
+        for (let i=0; i<disk_name.length; ++i)
+        {
+            let value = disk_name[i];
+            if (value == 0xA0)
+                value = 0x20;
+            data = this.WriteByte(data, value);
+        }
+        data = this.WriteString(data, '" ');
+        data = this.WriteBytes(data, disk_id);
+        data = this.WriteString(data, " ");
+        data = this.WriteBytes(data, dos_type);
+        data = this.WriteByte(data, 0);
+        
+        let count = this.GetDirectoryCount();
+        for (let i=0; i<count; ++i)
+        {
+            let dir = this.DirectoryEntry(i);
+            if ((dir.file_type & 3) == dir.FileType.PRG)
+            {
+                let next = data.length;
+                data = this.WriteWord(data, 0); // will patch up next later
+                data = this.WriteWord(data, dir.n_sectors); // line number
+                for (let j = dir.n_sectors.toString().length; j <= 3; ++j)
+                    data = this.WriteString(data, " ");
+                data = this.WriteString(data, '"');
+                let j = 0;
+                while (j < this.DirStruct.dir_name_size && dir.filename[j] != 0xA0)
+                    data = this.WriteByte(data, dir.filename[j++]);
+                data = this.WriteString(data, '"');
+                for (let k = j; k < this.DirStruct.dir_name_size + 1; ++k)
+                    data = this.WriteString(data, " ");
+                data = this.WriteString(data, dir.FileTypeString());
+                data = this.WriteByte(data, 0);
+                ptr += (data.length - next);
+                data[next] = (ptr & 0xFF);
+                data[next + 1] = (ptr >> 8);
+            }
+        }
+        let next = data.length;
+        data = this.WriteWord(data, 0); // will patch up next later
+        data = this.WriteWord(data, this.BlocksFree()); // line number
+        data = this.WriteString(data, "BLOCKS FREE.");
+        data = this.WriteByte(data, 0)
+        ptr += (data.length - next);
+        data[next] = (ptr & 0xFF);
+        data[next+1] = (ptr >> 8);
+        data = this.WriteWord(data, 0);
+        return new Uint8Array(data);
     }
 } // class D64
 
@@ -2241,6 +2343,14 @@ class EmuC64 {
                         this.files.push([filename, nums]);
                 }
             }
+
+            // store directory
+            let bytes = d64.GetDirectoryProgram();
+            let nums: number[] = [];
+            for (let j=0; j<bytes.length; ++j)
+                nums.push(bytes[j]);
+            this.files.push(["$", nums]);
+
             filename = "";
             return [];
         }
