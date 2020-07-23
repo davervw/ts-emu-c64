@@ -2357,8 +2357,12 @@ class EmuC64 {
 
         var i: number;
         for (i=0; i<this.files.length; ++i) {
-            if (this.files[i][0] == filename)
-                return this.files[i][1];
+            if (this.files[i][0] == filename) {
+                let data = [];
+                for (let j=0; j<this.files[i][1].length; ++j)
+                    data[j] = this.files[i][1][j];
+                return data; // return a copy so source not modified
+            }
         }
         return [];
     }
