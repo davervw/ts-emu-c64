@@ -1980,12 +1980,42 @@ class EmuC64 {
 
         if (context.StartupPRG == "" && autoexec.length > 0)
         {
-            if (autoexec.length == 683 * 256)
-                context.StartupPRG = "AUTOEXEC.D64";
-            else
+            if (autoexec.length == 683 * 256) // attach 1541 disk
+            {
+                let d64 = new D64(autoexec);
+                console.log(d64.GetDirectoryFormatted());
+                let n = d64.GetDirectoryCount();
+                context.files = [];
+                for (let i=0; i<n; ++i)
+                {
+                    let dir = d64.DirectoryEntry(i);
+                    let filename = dir.getName();
+                    if ((dir.file_type & 3) == 2) // PRG
+                    {
+                        let bytes = d64.ReadFileByIndex(i);
+                        let nums: number[] = [];
+                        for (let j=0; j<bytes.length; ++j)
+                            nums.push(bytes[j]);
+                        if (nums.length > 0)
+                            context.files.push([filename, nums]);
+                    }
+                }
+    
+                // store directory
+                let bytes = d64.GetDirectoryProgram();
+                let nums: number[] = [];
+                for (let j=0; j<bytes.length; ++j)
+                    nums.push(bytes[j]);
+                context.files.push(["$", nums]);
+
+                // reset global
+                autoexec = new Uint8Array(0);
+            }
+            else {
                 context.StartupPRG = "AUTOEXEC";
-            context.cpu.PC = (context.memory.get(0xFFFC) | (context.memory.get(0xFFFD) << 8)); // JMP(RESET)
-            return true;
+                context.cpu.PC = (context.memory.get(0xFFFC) | (context.memory.get(0xFFFD) << 8)); // JMP(RESET)
+                return true;
+            }
         }
         if (context.cpu.PC == 0xFFBA) // SETLFS
         {
@@ -2321,38 +2351,6 @@ class EmuC64 {
                 file[i] = autoexec[i];
             filename = "";
             return file;
-        }
-
-        if (filename == "AUTOEXEC.D64" && autoexec.length != 0)
-        {
-            let d64 = new D64(autoexec);
-            console.log(d64.GetDirectoryFormatted());
-            let n = d64.GetDirectoryCount();
-            this.files = [];
-            for (let i=0; i<n; ++i)
-            {
-                let dir = d64.DirectoryEntry(i);
-                let filename = dir.getName();
-                if ((dir.file_type & 3) == 2) // PRG
-                {
-                    let bytes = d64.ReadFileByIndex(i);
-                    let nums: number[] = [];
-                    for (let j=0; j<bytes.length; ++j)
-                        nums.push(bytes[j]);
-                    if (nums.length > 0)
-                        this.files.push([filename, nums]);
-                }
-            }
-
-            // store directory
-            let bytes = d64.GetDirectoryProgram();
-            let nums: number[] = [];
-            for (let j=0; j<bytes.length; ++j)
-                nums.push(bytes[j]);
-            this.files.push(["$", nums]);
-
-            filename = "";
-            return [];
         }
 
         var i: number;
