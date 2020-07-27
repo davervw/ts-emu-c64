@@ -36,7 +36,8 @@ let basic_rom: number[] = [];
 let char_rom: number[] = [];
 let kernal_rom: number[] = [];
 let redraw_screen: boolean = true;
-let autoexec: Uint8Array = new Uint8Array(0);
+let attach: Uint8Array = new Uint8Array(0);
+let autoexec: boolean = false;
 let timerA_enabled: boolean = false;
 let timerA_triggered: boolean = false;
 
@@ -1978,11 +1979,11 @@ class EmuC64 {
             return true; // overriden, and PC changed, so caller should reloop before execution to allow breakpoint/trace/ExecutePatch/etc.
         }
 
-        if (context.StartupPRG == "" && autoexec.length > 0)
+        if (context.StartupPRG == "" && attach.length > 0)
         {
-            if (autoexec.length == 683 * 256) // attach 1541 disk
+            if (attach.length == 683 * 256) // attach 1541 disk
             {
-                let d64 = new D64(autoexec);
+                let d64 = new D64(attach);
                 console.log(d64.GetDirectoryFormatted());
                 let n = d64.GetDirectoryCount();
                 context.files = [];
@@ -1998,6 +1999,8 @@ class EmuC64 {
                             nums.push(bytes[j]);
                         if (nums.length > 0)
                             context.files.push([filename, nums]);
+                        if (autoexec && context.StartupPRG.length == 0)
+                            context.StartupPRG = filename;
                     }
                 }
     
@@ -2009,10 +2012,22 @@ class EmuC64 {
                 context.files.push(["$", nums]);
 
                 // reset global
-                autoexec = new Uint8Array(0);
+                attach = new Uint8Array(0);
             }
-            else {
-                context.StartupPRG = "AUTOEXEC";
+            else // just one program
+            {
+                context.files = [];
+                let nums: number[] = [];
+                for (let i=0; i<attach.length; ++i)
+                    nums.push(attach[i]);
+                if (nums.length > 0)
+                    context.files.push(["ATTACH.PRG", nums]);
+                // reset global
+                attach = new Uint8Array(0);
+            }
+            if (autoexec) {
+                if (context.StartupPRG.length == 0)
+                    context.StartupPRG = "*";
                 context.cpu.PC = (context.memory.get(0xFFFC) | (context.memory.get(0xFFFD) << 8)); // JMP(RESET)
                 return true;
             }
@@ -2104,7 +2119,7 @@ class EmuC64 {
                         // so doesn't repeat
                         context.StartupPRG = "";
                         context.LOAD_TRAP = -1;
-                        autoexec = new Uint8Array(0);
+                        attach = new Uint8Array(0);
 
                         return true; // overriden, and PC changed, so caller should reloop before execution to allow breakpoint/trace/ExecutePatch/etc.
                     }
@@ -2116,7 +2131,7 @@ class EmuC64 {
                 }
 
                 context.StartupPRG = "";
-                autoexec = new Uint8Array(0);
+                attach = new Uint8Array(0);
 
                 if (is_basic) {
                     // UNNEW that I used in late 1980s, should work well for loading a program too, probably gleaned from BASIC ROM
@@ -2345,19 +2360,12 @@ class EmuC64 {
 
     protected OpenRead(filename: string) : number[]
     {
-        if (filename == "AUTOEXEC" && autoexec.length != 0)
-        {
-            var file : number[] = [];
-            let i;
-            for (i=0; i<autoexec.length; ++i)
-                file[i] = autoexec[i];
-            filename = "";
-            return file;
-        }
-
         var i: number;
         for (i=0; i<this.files.length; ++i) {
-            if (this.files[i][0] == filename) {
+            if (this.files[i][0] == filename 
+                || 
+                filename[0] != "$" && (this.files.length == 1 || filename == "0:*" || filename == "*" || filename == ":*")
+            ) {
                 let data = [];
                 for (let j=0; j<this.files[i][1].length; ++j)
                     data[j] = this.files[i][1][j];
@@ -2590,7 +2598,13 @@ onmessage = function(e : MessageEvent) {
         }
         else if (e.data.autoexec)
         {
-            autoexec = e.data.autoexec;
+            attach = e.data.autoexec;
+            autoexec = true;
+        }
+        else if (e.data.attach)
+        {
+            attach = e.data.attach;
+            autoexec = false;
         }
     }
     //postMessage(["ack"], "onmessage");

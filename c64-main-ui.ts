@@ -709,7 +709,10 @@ function drawC64Char(ctx: CanvasRenderingContext2D, chardata: number[], x: numbe
 
 // modified from https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
 
-function dropHandler(ev: any) {
+function dropHandler(ev: DragEvent) {
+  if (ev.dataTransfer == null)
+    return;
+
   console.log('File(s) dropped');
 
   // Prevent default behavior (Prevent file from being opened)
@@ -721,16 +724,21 @@ function dropHandler(ev: any) {
       // If dropped items aren't files, reject them
       if (ev.dataTransfer.items[i].kind === 'file') {
         var file = ev.dataTransfer.items[i].getAsFile();
-        console.log('... file[' + i + '].name = ' + file.name);
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          if (e.target != null) {
-            var array = new Uint8Array(<ArrayBuffer>(e.target.result));
-            cpuWorker.postMessage({ autoexec: array });
+        if (file != null) {
+          console.log('... file[' + i + '].name = ' + file.name);
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            if (e.target != null) {
+              var array = new Uint8Array(<ArrayBuffer>(e.target.result));
+              if (ev.altKey || ev.ctrlKey)
+                cpuWorker.postMessage({ autoexec: array });
+              else
+                cpuWorker.postMessage({ attach: array });
+            }
           }
+          reader.readAsArrayBuffer(file);
+          break; // only support one file
         }
-        reader.readAsArrayBuffer(file);
-        break; // only support one file
       }
     }
   } else {
@@ -742,7 +750,7 @@ function dropHandler(ev: any) {
   }
 }
 
-function dragOverHandler(ev: any) {
+function dragOverHandler(ev: DragEvent) {
   console.log('File(s) in drop zone'); 
 
   // Prevent default behavior (Prevent file from being opened)
