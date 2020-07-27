@@ -398,6 +398,9 @@ function C64keyEventEx(event: KeyboardEvent): boolean {
 ////////////////////////////////////////////////////////////////////////////////
 
 var canvas: any = document.getElementById("screen");
+canvas.addEventListener("drop", dropHandler);
+canvas.addEventListener("dragover", dragOverHandler);
+canvas.addEventListener("click", canvasClick);
 var ctx = canvas?.getContext("2d");
 ctx.fillStyle = "#000000";
 ctx.fillRect(0, 0, 320, 200);
