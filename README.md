@@ -27,4 +27,6 @@ The release requires index.html, the *.js files, the emuc64-about*.png files, an
 
 >Because Ctrl+W closes the web browser with Firefox/Chrome, Alt is also implemented as the Commodore Key (choose your keystroke wisely!).  Known bug (feature?) with Firefox/Chrome.
 
+Also see description of this project at [blog.davevw.com](https://techwithdave.davevw.com/2020/07/commodore-64-running-in-web-browser.html)
+
 ![breadbin](https://github.com/davervw/ts-emu-c64/raw/master/breadbin.jpg)
