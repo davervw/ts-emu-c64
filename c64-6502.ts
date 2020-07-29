@@ -1376,7 +1376,7 @@ class EmuD64
 
         public FileTypeString()
         {
-            switch (this.file_type & 3)
+            switch (this.file_type & 7)
             {
                 case this.FileType.DEL:
                     return "DEL";
@@ -1388,7 +1388,9 @@ class EmuD64
                     return "SEQ";
                 case this.FileType.USR:
                     return "USR";
-            }
+                default:
+                    return "???";
+                }
         }
 
         public toString(): any
@@ -1532,7 +1534,7 @@ class EmuD64
         let data : number[] = [];
         let track = (<any>dir).file_track;
         let sector = dir.file_sector;
-        if ((<number>(dir.file_type) & 3) == <number>(dir.FileType.PRG))
+        if ((<number>(dir.file_type) & 7) == <number>(dir.FileType.PRG))
         {
             while (true)
             {
@@ -1554,7 +1556,7 @@ class EmuD64
     private ReadFileByNameHandler(d64: EmuD64, dir: any, n: number, last: boolean, context: any): [boolean, any/*number*/]
     {
         let filename = <Uint8Array>context;
-        let isPRG : boolean = ((<number>(dir.file_type) & 3) == <number>(dir.FileType.PRG));
+        let isPRG : boolean = ((<number>(dir.file_type) & 7) == <number>(dir.FileType.PRG));
         for (let i=0; i<this.DirStruct.dir_name_size; ++i)
         {
             if (i > 0 && filename[i] == 0xA0) // end of filename shortcut
@@ -1647,7 +1649,7 @@ class EmuD64
         for (let i=0; i<count; ++i)
         {
             let dir = this.DirectoryEntry(i);
-            if ((dir.file_type & 3) == dir.FileType.PRG)
+            if ((dir.file_type & 7) == dir.FileType.PRG)
             {
                 let next = data.length;
                 data = this.WriteWord(data, 0); // will patch up next later
@@ -1992,7 +1994,7 @@ class EmuC64 {
                 {
                     let dir = d64.DirectoryEntry(i);
                     let filename = dir.getName();
-                    if ((dir.file_type & 3) == 2) // PRG
+                    if ((dir.file_type & 7) == 2) // PRG
                     {
                         let bytes = d64.ReadFileByIndex(i);
                         let nums: number[] = [];
