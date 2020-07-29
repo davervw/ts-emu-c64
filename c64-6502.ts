@@ -1238,6 +1238,7 @@ class EmuD64
     readonly dir_sector = 1;
     readonly dir_entry_size = 32;
     readonly dir_entries_per_sector = this.bytes_per_sector / this.dir_entry_size;
+    readonly dir_entries_max = (this.sectors_per_track[this.dir_track] - 1) * this.dir_entries_per_sector;
     readonly bam_track = this.dir_track;
     readonly bam_sector = 0;
     readonly disk_name_offset = 0x90;
@@ -1256,6 +1257,77 @@ class EmuD64
         this.bytes = new Uint8Array(bytes.length);
         for (let i=0; i<bytes.length; ++i)
             this.bytes[i] = bytes[i];
+    }
+
+    static CreateEmptyDisk(): EmuD64
+    {
+        let bytes = new Uint8Array(174848);
+        let d64 = new EmuD64(bytes);
+        d64.InitializeString("DISK NAME", "ID");
+        return d64;
+    }
+
+    public InitializeString(disk_name: string, id: string)
+    {
+        let disk_data = new Uint8Array(this.disk_name_size);
+        let id_data = new Uint8Array(this.disk_id_size);
+        this.InitializeData(disk_data, id_data);
+    }
+
+    public InitializeData(disk_name: Uint8Array, id: Uint8Array)
+    {
+        // wipe disk
+        for (let i = 0; i < this.bytes.length; ++i)
+            this.bytes[i] = 0;
+
+        // initialize BAM
+        let i = this.GetSectorOffset(this.bam_track, this.bam_sector);
+        this.bytes[i++] = this.dir_track;
+        this.bytes[i++] = this.dir_sector;
+        this.bytes[i++] = 0x41; 'A' // Disk DOS version type
+        this.bytes[i++] = 0; // unused
+
+        // initalize BAM free space
+        for (let track=1; track <= this.n_tracks; ++track)
+        {
+            if (track == this.dir_track) {
+                this.bytes[i++] = 0;
+                this.bytes[i++] = 0;
+                this.bytes[i++] = 0;
+                this.bytes[i++] = 0;
+            } else {
+                this.bytes[i++] = this.sectors_per_track[track];
+                this.bytes[i++] = 0xFF;
+                this.bytes[i++] = 0xFF;
+                this.bytes[i++] = 0xFF;
+            }
+        }
+
+        for (let j=0; j<this.disk_name_size; ++j)
+            this.bytes[i++] = disk_name[j];
+
+        for (let j=0; j<this.disk_id_size; ++j)
+            this.bytes[i++] = id[j];
+
+        this.bytes[i++] = 0xA0;
+
+        // DOS type
+        this.bytes[i++] = 0x32; '2'
+        this.bytes[i++] = 0x41; 'A'
+
+        // filled
+        this.bytes[i++] = 0xA0;
+        this.bytes[i++] = 0xA0;
+        this.bytes[i++] = 0xA0;
+        this.bytes[i++] = 0xA0;
+        
+        // initialize first directory sector
+        i = this.GetSectorOffset(this.dir_track, this.dir_sector);
+        for (let j=0; j<this.dir_entries_per_sector; ++j)
+        {
+            for (let k=0; k<this.DirStruct.dir_name_size; ++k)
+                this.bytes[i+j*this.dir_entry_size+5+k] = 0xA0; // filename padding
+        }
     }
 
     private GetSectorOffset(track: number, sector: number): number
@@ -1337,6 +1409,23 @@ class EmuD64
             this.n_sectors = (lo + (hi << 8));
             if (offset != save_offset + d64.dir_entry_size)
                 throw "internal error, expected to read " + d64.dir_entry_size + " bytes for directory entry, but read " + (offset - save_offset) + " bytes";
+        }
+
+        // just store in first entry for now
+        private Store(d64: EmuD64): void
+        {
+            this.file_type |= 0x80; // closed
+
+            let i = d64.GetSectorOffset(d64.dir_track, d64.dir_sector);
+            d64.bytes[i+2] = <number>(this.file_type);
+            d64.bytes[i+3] = this.file_track;
+            d64.bytes[i+4] = this.file_sector;
+            
+            for (let j=0; j<this.filename.length; ++j)
+                d64.bytes[i+5+j] = this.filename[j];
+
+            d64.bytes[i+30] = this.n_sectors & 0xFF;
+            d64.bytes[i+31] = this.n_sectors >> 8;
         }
 
         public static PrintableChar(i: number): string
@@ -1575,6 +1664,102 @@ class EmuD64
             return this.ReadFileByIndex(<number>result);
         else
             return new Uint8Array(0);
+    }
+
+    private WriteBlock(block: any, next_block: any, data: Uint8Array, data_offset: number)
+    {
+        let disk_offset = this.GetSectorOffset(block.track, block.sector);
+        let size = this.bytes_per_sector - 2;
+        if (data_offset + size > data.length) {
+            size = data.length - data_offset;
+            this.bytes[disk_offset++] = 0;
+            this.bytes[disk_offset++] = size;
+        } else {
+            this.bytes[disk_offset++] = next_block.track;
+            this.bytes[disk_offset++] = next_block.sector;
+        }
+        for (let i=0; i<size; ++i)
+            this.bytes[disk_offset+i] = data[data_offset+i];
+    }
+
+    private AllocBlock()
+    {
+        let track = 0;
+        let sector = 0;
+        let done: boolean = false;
+
+        let offset = this.GetSectorOffset(this.bam_track, this.bam_sector);
+        while(track <= this.n_tracks)
+        {
+            let track_bam_offset = offset + track * 4;
+            let track_free = this.bytes[track_bam_offset];
+            if (track_free > 0)
+            {
+                let track_bam = this.bytes[track_bam_offset + 1] | (this.bytes[track_bam_offset + 2] << 8) | (this.bytes[track_bam_offset + 3] << 16);
+                for (let sector = 0; sector <= this.sectors_per_track[track]; ++sector)
+                {
+                    if (track_bam & (1 << sector)) // found free sector
+                    {
+                        // mark sector used
+                        if (sector < 8)
+                            this.bytes[track_bam_offset + 1] ^= (1 << sector);
+                        else if (sector < 16)
+                            this.bytes[track_bam_offset + 2] ^= (1 << (sector-8));
+                        else
+                            this.bytes[track_bam_offset + 3] ^= (1 << (sector-16));
+
+                        done = true;
+                        break;
+                    }
+                }
+                if (done)
+                    break;
+            }
+            ++track;
+        }
+
+        return {'track':track, 'sector':sector};
+    }
+
+    public StoreFileByStruct(dir: any, data: Uint8Array)
+    {
+        let n_sectors = Math.ceil(data.length / (this.bytes_per_sector - 2));
+        let free = this.BlocksFree();
+        if (free < n_sectors)
+            throw "cannot store file " + dir.getname() + " (" + n_sectors + " blocks) as disk has only " + free + " blocks";
+        dir.n_sectors = n_sectors;
+        let offset = 0;
+        if (n_sectors > 0) {
+            let block = this.AllocBlock();
+            dir.file_track = block.track;
+            dir.file_sector = block.sector;
+            dir.Store(this);
+            while (true)
+            {
+                let next_block = {track: 0, sector: 0};
+                if (n_sectors > 1)
+                    next_block = this.AllocBlock();
+                this.WriteBlock(block, next_block, data, offset);
+                block = next_block;
+                offset += (this.bytes_per_sector - 2);
+                if (--n_sectors == 0)
+                    break;
+            }
+        }        
+    }
+
+    public StoreFileByName(filename: Uint8Array, data: Uint8Array)
+    {
+        if (this.GetDirectoryCount() >= this.dir_entries_max)
+            throw `directory is full, cannot store file ${filename}`;
+        let dir = new this.DirStruct();
+        dir.file_type = dir.FileType.PRG;
+        let i: number;
+        for (i=0; i<filename.length && i<this.DirStruct.dir_name_size; ++i)
+            dir.filename[i] = filename[i];
+        while (i<this.DirStruct.dir_name_size)
+            dir.filename[i++] = 0xA0; // pad
+        this.StoreFileByStruct(dir, data);
     }
 
     public GetDirectoryFormatted(): string
