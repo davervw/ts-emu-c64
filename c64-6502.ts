@@ -2619,7 +2619,7 @@ class EmuC64 {
         stream.push(this.cpu.LO(addr1));
         stream.push(this.cpu.HI(addr1));
         var addr: number
-        for (addr = addr1; addr <= addr2; ++addr)
+        for (addr = addr1; addr < addr2; ++addr)
             stream.push(this.memory.get(addr));
         this.memory.getWorker().postMessage(["save", filename, stream]);
         return true;
