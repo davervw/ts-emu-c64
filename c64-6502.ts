@@ -1177,7 +1177,8 @@ class Emu6502 {
     }
 }
 
-// d64.ts - Class D64 - 1541 Disk Driver - access files, directory from disk image
+// emud64.ts - Class EmuD64
+//   1541 Disk Image Driver - access files, directory from disk image
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1208,7 +1209,7 @@ class Emu6502 {
 // SOFTWARE.
 //
 ////////////////////////////////////////////////////////////////////////////////
-class D64
+class EmuD64
 {
     // D64 File format documented at https://vice-emu.sourceforge.io/vice_16.html
     // and http://unusedino.de/ec64/technical/formats/d64.html
@@ -1306,7 +1307,7 @@ class D64
             this.n_sectors = 0;
         }
 
-        public Read(d64: D64, track: number, sector: number, n: number): void
+        public Read(d64: EmuD64, track: number, sector: number, n: number): void
         {
             if (n < 0 || n >= d64.dir_entries_per_sector)
                 throw "directory index " + n + " out of range, expected 0 to " + (d64.dir_entries_per_sector - 1);
@@ -1314,7 +1315,7 @@ class D64
             this.ReadData(d64, d64.bytes, i);
         }
 
-        private ReadData(d64: D64, data: Uint8Array, offset: number): void
+        private ReadData(d64: EmuD64, data: Uint8Array, offset: number): void
         {
             let save_offset = offset;
             this.next_track = data[offset++];
@@ -1410,7 +1411,7 @@ class D64
         }
     }
 
-    private WalkDirectory(dirFn: (d64: D64, dir: any, n: number, last: boolean, context: any) => [boolean, any], context: any): any
+    private WalkDirectory(dirFn: (d64: EmuD64, dir: any, n: number, last: boolean, context: any) => [boolean, any], context: any): any
     {
         let track = this.dir_track;
         let sector = this.dir_sector;
@@ -1440,7 +1441,7 @@ class D64
         return context;
     }
 
-    private DirectoryCountHandler(d64: D64, dir: any, n: number, last: boolean, context: any) : [boolean, any]
+    private DirectoryCountHandler(d64: EmuD64, dir: any, n: number, last: boolean, context: any) : [boolean, any]
     {
         let total_count: number = context;
         ++total_count;
@@ -1456,7 +1457,7 @@ class D64
     }
 
     // context is [number, DirStruct]
-    private DirectoryEntryHandler(d64: D64, dir: any, n: number, last: boolean, context: any): [boolean, any]
+    private DirectoryEntryHandler(d64: EmuD64, dir: any, n: number, last: boolean, context: any): [boolean, any]
     {
         if (n == context[0])
         {
@@ -1550,7 +1551,7 @@ class D64
         return new Uint8Array(data);
     }
 
-    private ReadFileByNameHandler(d64: D64, dir: any, n: number, last: boolean, context: any): [boolean, any/*number*/]
+    private ReadFileByNameHandler(d64: EmuD64, dir: any, n: number, last: boolean, context: any): [boolean, any/*number*/]
     {
         let filename = <Uint8Array>context;
         let isPRG : boolean = ((<number>(dir.file_type) & 3) == <number>(dir.FileType.PRG));
@@ -1983,7 +1984,7 @@ class EmuC64 {
         {
             if (attach.length == 683 * 256) // attach 1541 disk
             {
-                let d64 = new D64(attach);
+                let d64 = new EmuD64(attach);
                 console.log(d64.GetDirectoryFormatted());
                 let n = d64.GetDirectoryCount();
                 context.files = [];
