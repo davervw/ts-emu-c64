@@ -20,7 +20,16 @@ The Commodore 64 ROMs are included for educational purposes and not licensed wha
 
 To compile the code, you need node.js/npm, and typescript installed.  My development environment is using Visual Code, you can use something else.   Typescript is used to transpile into JavaScript.  The implementation uses a canvas in html, and a web worker for running the 6502 in the background.  Normally web browsers won't load a web worker as is from the local file system, so using a web server is recommended to serve up the pages from port 80, or whatever you like (left as an exercise to the user).
 
-The release requires index.html, the *.js files, the emuc64-about*.png files, and FireFox is the recommended browser as it gives the best keyboard emulation.  Ctrl or ALT is the Commodore key, Tab is the Control key.  See [c64-kbd.ts](https://github.com/davervw/ts-emu-c64/blob/master/c64-kbd.ts) for full keyboard table diagrams.  Hint: ESC is Stop.
+The release requires index.html, the *.js files, the emuc64-about*.png files, and FireFox is the recommended browser as it gives the best keyboard emulation.  Ctrl or ALT is the Commodore key, Tab is the Control key.  Hint: ESC is Stop.
+
+PC to Commodore keyboard symbolic mapping:
+  
+    STOP(ESC) F1 F2 F3 F4 F5 F6 F7 F8 Help(F9)                   Run/Stop(Pause/Break)
+    1! 2@ 3# 4$ 5% 6^ 7& 8* 9( 0) -_ += Del/Ins(Back)    Ins Hm/Clr Restr    / * -
+    Ctrl(Tab) Q  W  E  R  T  Y  U  I  O  P  [  ]  £ (\)  Del        (PUp)  7 8 9 +
+    A  S  D  F  G  H  J  K  L  ;: '" Return(ENTER)                         4 5 6
+    LShift    Z  X  C  V  B  N  M  ,< .> /?  RShift            Up          1 2 3
+    C=(Ctrl)           SPACEBAR              C=(Ctrl)    Lft  Down  Rt     0 .   Enter
 
 ### Known Issues ###
 
