@@ -24,12 +24,12 @@ The release requires index.html, the *.js files, the emuc64-about*.png files, an
 
 PC to Commodore keyboard symbolic mapping:
   
-    STOP(ESC) F1 F2 F3 F4 F5 F6 F7 F8 Help(F9)                   Run/Stop(Pause/Break)
-    1! 2@ 3# 4$ 5% 6^ 7& 8* 9( 0) -_ += Del/Ins(Back)    Ins Hm/Clr Restr    / * -
-    Ctrl(Tab) Q  W  E  R  T  Y  U  I  O  P  [  ]  £ (\)  Del        (PUp)  7 8 9 +
-    A  S  D  F  G  H  J  K  L  ;: '" Return(ENTER)                         4 5 6
-    LShift    Z  X  C  V  B  N  M  ,< .> /?  RShift            Up          1 2 3
-    C=(Ctrl)           SPACEBAR              C=(Ctrl)    Lft  Down  Rt     0 .   Enter
+    STOP(ESC) F1 F2 F3 F4 F5 F6 F7 F8 Help(F9)                  Run/Stop(Pause/Break)
+              1! 2@ 3# 4$ 5% 6^ 7& 8* 9( 0) -_ += DelIns Ins HmClr Rstr     / * -
+    Ctrl(Tab) Q  W  E  R  T  Y  U  I  O  P  [  ]  £ (\)  Del       (PUp)  7 8 9 +
+              A  S  D  F  G  H  J  K  L  ;: '" Return                     4 5 6
+    LShift    Z  X  C  V  B  N  M  ,< .> /?  RShift            Up         1 2 3
+    C=(Ctrl)           SPACEBAR              C=(Ctrl)    Lft  Down  Rt    0 .   Enter
 
 ### Known Issues ###
 
