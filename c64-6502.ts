@@ -1686,14 +1686,10 @@ class EmuD64
     {
         let disk_offset = this.GetSectorOffset(block.track, block.sector);
         let size = this.bytes_per_sector - 2;
-        if (data_offset + size > data.length) {
+        this.bytes[disk_offset++] = next_block.track;
+        this.bytes[disk_offset++] = next_block.sector;
+        if (data_offset + size > data.length) // make sure we don't surpass array limits
             size = data.length - data_offset;
-            this.bytes[disk_offset++] = 0;
-            this.bytes[disk_offset++] = size;
-        } else {
-            this.bytes[disk_offset++] = next_block.track;
-            this.bytes[disk_offset++] = next_block.sector;
-        }
         for (let i=0; i<size; ++i)
             this.bytes[disk_offset+i] = data[data_offset+i];
     }
@@ -1754,16 +1750,19 @@ class EmuD64
             dir.file_track = block.track;
             dir.file_sector = block.sector;
             dir.Store(this);
-            while (true)
+            while (n_sectors > 0)
             {
-                let next_block = {track: 0, sector: 0};
-                if (n_sectors > 1)
+                let next_block;
+                if (--n_sectors == 0) {
+                    let size = data.length % (this.bytes_per_sector - 2);
+                    if (size == 0)
+                        size = this.bytes_per_sector - 2;
+                    next_block = { track: 0, sector: (size+1) }
+                } else
                     next_block = this.AllocBlock();
                 this.WriteBlock(block, next_block, data, offset);
                 block = next_block;
                 offset += (this.bytes_per_sector - 2);
-                if (--n_sectors == 0)
-                    break;
             }
         }        
     }
