@@ -1722,6 +1722,10 @@ class EmuD64
                         else
                             this.bytes[track_bam_offset + 3] ^= (1 << (sector-16));
 
+                        // decrement track's free sector count
+                        if (this.bytes[track_bam_offset] > 0)
+                            --this.bytes[track_bam_offset];
+
                         done = true;
                         break;
                     }
