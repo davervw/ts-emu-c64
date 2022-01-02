@@ -56,7 +56,7 @@ class Emu6502 {
     protected S: number = 0xFF;
     protected N: boolean = false;
     protected V: boolean = false;
-    protected B: boolean = false;
+    protected B: boolean = true;
     protected D: boolean = false;
     protected I: boolean = false;
     protected Z: boolean = false;
@@ -178,8 +178,10 @@ class Emu6502 {
                         this.getNextScanCodes(); // each IRQ gets new buffered scan codes to help guarantee keystrokes get through
                         if (timerA_enabled && this.isTimerAStarted()) { // timer hardware enabled?
                             this.Push(this.HI(this.PC));          
-                            this.Push(this.LO(this.PC));          
+                            this.Push(this.LO(this.PC));
+                            this.B = false; // to tell the difference between IRQ and BRK, from what is on stack         
                             this.PHP();
+                            this.B = true; // 6502 doesn't really have a B status flag, (code PHP always pushes as set)
                             this.I = true;
                             this.PC = this.memory.get(0xFFFE) | (this.memory.get(0xFFFF) << 8);
                             irq = true;
@@ -544,6 +546,7 @@ class Emu6502 {
         let flags: number = 
             (this.N ? 0x80 : 0)
             | (this.V ? 0x40 : 0)
+            | 0x20
             | (this.B ? 0x10 : 0)
             | (this.D ? 0x08 : 0)
             | (this.I ? 0x04 : 0)
@@ -556,7 +559,6 @@ class Emu6502 {
         let flags: number = this.Pop();
         this.N = (flags & 0x80) != 0;
         this.V = (flags & 0x40) != 0;
-        this.B = (flags & 0x10) != 0;
         this.D = (flags & 0x08) != 0;
         this.I = (flags & 0x04) != 0;
         this.Z = (flags & 0x02) != 0;
@@ -719,10 +721,10 @@ class Emu6502 {
 
     BRK() {
         this.PC = this.IncWord(this.PC);
+        this.PC = this.IncWord(this.PC);
         this.Push(this.HI(this.PC));
         this.Push(this.LO(this.PC));
         this.PHP();
-        this.B = true;
         this.PC = this.memory.get(0xFFFE) | (this.memory.get(0xFFFF) << 8); // JMP(IRQ)
     }
 
@@ -888,7 +890,7 @@ class Emu6502 {
             (this.N ? 'N' : ' ') +
             (this.V ? 'V' : ' ') +
             '-' +
-            (this.B ? 'B' : ' ') +
+            '-' + // B
             (this.D ? 'D' : ' ') +
             (this.I ? 'I' : ' ') +
             (this.Z ? 'Z' : ' ') +
