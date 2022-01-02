@@ -2189,7 +2189,9 @@ class EmuC64 {
             context.NMI = true; // set so won't trigger again until cleared
             context.cpu.Push(context.cpu.HI(context.cpu.PC));
             context.cpu.Push(context.cpu.LO(context.cpu.PC));
+            context.cpu.B = false; // NMI clears B flag on stack     
             context.cpu.PHP();
+            context.cpu.B = true; // 6502 doesn't really have a B status flag, (code PHP always pushes as set)
             context.cpu.PC = (context.memory.get(0xFFFA) | (context.memory.get(0xFFFB) << 8)); // JMP(NMI)
             return true; // overriden, and PC changed, so caller should reloop before execution to allow breakpoint/trace/ExecutePatch/etc.
         }
