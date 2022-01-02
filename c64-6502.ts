@@ -2273,13 +2273,11 @@ class EmuC64 {
             else
                 op = "LOAD (A=" + context.cpu.A + ") ???";
             context.FileVerify = (context.cpu.A == 1);
-            console.log(op + " @" + Emu6502.toHex16(context.FileAddr));
+            console.log(op);
 
             context.ExecuteRTS();
 
             if (context.cpu.A == 0 || context.cpu.A == 1) {
-                context.StartupPRG = context.FileName;
-                context.FileName = "";
                 context.LOAD_TRAP = context.cpu.PC;
 
                 // Set success
@@ -2311,7 +2309,7 @@ class EmuC64 {
         else if (context.cpu.PC == 0xA474 || context.cpu.PC == context.LOAD_TRAP) // READY
         {
             // context.cpu.trace = false;
-            if (context.StartupPRG != "") // User requested program be loaded at startup
+            if (context.startup_state == 0 && (context.StartupPRG != null || context.PC == context.LOAD_TRAP))
             {
                 let is_basic: boolean;
                 if (context.cpu.PC == context.LOAD_TRAP) {
@@ -2324,7 +2322,10 @@ class EmuC64 {
                     let success: boolean;
                     let err: number;
                     [success, err] = context.FileLoad();
-                    if (!success) {
+                    if (success) {
+                        context.memory.set(0xAE, context.cpu.LO(context.FileAddr));
+                        context.memory.set(0xAF, context.cpu.HI(context.FileAddr));
+                    } else {
                         console.log("FileLoad() failed: err=" + err + ", file " + context.StartupPRG);
                         context.cpu.C = true; // signal error
                         context.cpu.SetA(err); // FILE NOT FOUND or VERIFY
@@ -2341,6 +2342,8 @@ class EmuC64 {
                     context.FileName = context.StartupPRG;
                     context.FileAddr = context.memory.get(43) | (context.memory.get(44) << 8);
                     is_basic = context.LoadStartupPrg();
+                    context.memory.set(0xAE, context.cpu.LO(context.FileAddr));
+                    context.memory.set(0xAF, context.cpu.HI(context.FileAddr));
                 }
 
                 context.StartupPRG = "";
@@ -2413,7 +2416,59 @@ class EmuC64 {
                 return true; // overriden, and PC changed, so caller should reloop before execution to allow breakpoint/trace/ExecutePatch/etc.
             }
         }
+        else if (context.memory.get(context.cpu.PC) == 0x6C && context.memory.get(context.cpu.PC+1) == 0x30 && context.memory.get(context.cpu.PC+2) == 0x03)// catch JMP(LOAD_VECTOR), redirect to jump table
+        {
+            context.CheckBypassSETLFS();
+            context.CheckBypassSETNAM();
+            // note: A register has same purpose LOAD/VERIFY
+            context.cpu.X = context.memory.get(0xC3);
+            context.cpu.Y = context.memory.get(0xC4);
+            context.cpu.PC = 0xFFD5; // use KERNAL JUMP TABLE instead, so LOAD is hooked by base
+            return true; // re-execute
+        }
+        else if (context.memory.get(context.cpu.PC) == 0x6C && context.memory.get(context.cpu.PC+1) == 0x32 && context.memory.get(context.cpu.PC+2) == 0x03) // catch JMP(SAVE_VECTOR), redirect to jump table
+        {
+            context.CheckBypassSETLFS();
+            context.CheckBypassSETNAM();
+            context.cpu.X = context.memory.get(0xAE);
+            context.cpu.Y = context.memory.get(0xAF);
+            context.cpu.A = 0xC1;
+            context.cpu.PC = 0xFFD8; // use KERNAL JUMP TABLE instead, so SAVE is hooked by base
+            return true; // re-execute
+        }
+        
         return false;
+    }
+
+    protected CheckBypassSETNAM()
+    {
+        // In case caller bypassed calling SETNAM, get from lower memory
+        let name_len : number = this.memory.get(0xB7);
+        let name_addr : number = (this.memory.get(0xBB) | (this.memory.get(0xBC) << 8));
+        let name : string = "";
+        for (let i : number = 0; i < name_len; ++i)
+            name += String.fromCharCode(this.memory.get(name_addr + i));
+        if (this.FileName != name)
+        {
+            console.log("bypassed SETNAM " + name);
+            this.FileName = name;
+        }
+    }
+
+    protected CheckBypassSETLFS()
+    {
+        // In case caller bypassed calling SETLFS, get from lower memory
+        if (
+            this.FileNum != this.memory.get(0xB8)
+            || this.FileDev != this.memory.get(0xBA)
+            || this.FileSec != this.memory.get(0xB9)
+        )
+        {
+            this.FileNum = this.memory.get(0xB8);
+            this.FileDev = this.memory.get(0xBA);
+            this.FileSec = this.memory.get(0xB9);
+            console.log("bypassed SETLFS " + this.FileNum + ", " + this.FileDev + ", " + this.FileSec);
+        }
     }
 
     protected ExecuteRTS(): boolean {
@@ -2455,11 +2510,11 @@ class EmuC64 {
 
     // returns success
     protected FileLoad(): [boolean, number] {
-        let startup: boolean = (this.StartupPRG != null);
+        let startup: boolean = (this.StartupPRG != "");
         let addr: number = this.FileAddr;
         let success: boolean = true;
         let err: number = 0;
-        let filename: string = this.StartupPRG;
+        let filename: string = (this.StartupPRG != "") ? this.StartupPRG : this.FileName;
         let bytes: Uint8Array = this.OpenRead(filename);
         let si: number = 0;
         if (bytes.length == 0) {
@@ -2479,6 +2534,8 @@ class EmuC64 {
         }
         if (this.FileSec == 1) // use address in file? yes-use, no-ignore
             addr = lo | (hi << 8); // use address specified in file
+        let op : string = this.FileVerify ? "VERIFY" : "LOAD";
+        console.log(op + "@" + Emu6502.toHex16(addr));
         let i: number;
         while (success) {
             if (si < bytes.length) {
@@ -2497,6 +2554,7 @@ class EmuC64 {
                 break; // end of file
         }
         this.FileAddr = addr;
+        console.log("END " + Emu6502.toHex16(addr));
         return [success, err];
     }
 
