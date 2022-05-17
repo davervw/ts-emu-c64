@@ -1,17 +1,19 @@
 {
-  "name": "js-emu-c64",
+  "name": "ts-emu-c64",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Commodore 64 emulator subset developed in TypeScript",
+  "main": "main.js",
   "scripts": {
+    "start": "electron .",
     "tsc": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": "",
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {},
+  "author": "Dave Van Wagner",
+  "license": "MIT",
   "devDependencies": {
+    "electron": "^18.2.3",
     "typescript": "^3.9.2"
   }
 }

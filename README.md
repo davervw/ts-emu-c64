@@ -40,3 +40,13 @@ PC to Commodore keyboard symbolic mapping:
 Also see description of this project at [blog.davevw.com](https://techwithdave.davevw.com/2020/07/commodore-64-running-in-web-browser.html)
 
 ![breadbin](https://github.com/davervw/ts-emu-c64/raw/master/breadbin.jpg)
+
+### USE INSTRUCTIONS
+
+`requries [Node.js](https://nodejs.org/en/download/)
+npm install
+npm start
+
+### LINKS
+
+[Electron Quick Start Guide](https://electronjs.org/docs/latest/tutorial/quick-start).
