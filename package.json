@@ -13,7 +13,7 @@
   "author": "Dave Van Wagner",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^18.2.3",
+    "electron": "^18.2.4",
     "typescript": "^3.9.2"
   }
 }
