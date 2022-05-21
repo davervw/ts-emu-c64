@@ -383,13 +383,21 @@ function C64keyEventEx(event: KeyboardEvent): boolean {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+const width = 320;
+const height = 200;
 var canvas: any = document.getElementById("screen");
 canvas.addEventListener("drop", dropHandler);
 canvas.addEventListener("dragover", dragOverHandler);
 canvas.addEventListener("click", canvasClick);
 var ctx = canvas?.getContext("2d");
 ctx.fillStyle = "#000000";
-ctx.fillRect(0, 0, 320, 200);
+ctx.fillRect(0, 0, width, height);
+const imgData = ctx.getImageData(0, 0, width, height);
+const bitmap = imgData.data;
+var dirtyx = 0;
+var dirtyy = 0;
+var dirtywidth = 0;
+var dirtyheight = 0;
 
 var about_img: HTMLImageElement = new Image();
 var about_loaded: boolean = false;
@@ -403,8 +411,16 @@ about_img.src = "emuc64-about.png";
 function toggleAbout() {
   if (about_active) {
     about_active = false;
-    drawC64Screen();
+    dirtyx = 0;
+    dirtyy = 0;
+    dirtywidth = width;
+    dirtyheight = height;
+    requestAnimationFrame(animationCallback)
   } else {
+    dirtyx = 0;
+    dirtyy = 0;
+    dirtywidth = 0;
+    dirtyheight = 0;
     about_active = true;
     ctx.drawImage(about_img, 0,0);
   }
@@ -417,7 +433,7 @@ function canvasClick(event: MouseEvent) {
   {
     if (event.clientX >= 48 && event.clientY >= 48 && event.clientY < (200/3) + 48) // top third, not border
       window.open("https://github.com/davervw/ts-emu-c64/blob/master/README.md");
-    else if (event.clientX >= 48 && event.clientX <= (320/3) + 48 && event.clientY >= (200/3*2) + 48 && event.clientY < 200+48) // SW corner, not border
+    else if (event.clientX >= 48 && event.clientX <= (width/3) + 48 && event.clientY >= (height/3*2) + 48 && event.clientY < height+48) // SW corner, not border
       toggleKeys();
     else
       toggleAbout();
@@ -619,9 +635,9 @@ function toHex8(value: number): string {
   return toHex(value, 2);
 }
 
-function drawC64Screen(){
-  cpuWorker.postMessage({ redraw: true });
-}
+// function drawC64Screen(){
+//   cpuWorker.postMessage({ redraw: true });
+// }
 
 function drawC64Border(canvas: HTMLElement, color: number) {
   color = color & 0xF;
@@ -630,7 +646,6 @@ function drawC64Border(canvas: HTMLElement, color: number) {
 }
 
 function drawC64Char(ctx: CanvasRenderingContext2D, chardata: number[], x: number, y: number, fg: number, bg: number) {
-  var char: ImageData = new ImageData(8, 8);
   var b: number;
   var r: number;
 
@@ -642,23 +657,53 @@ function drawC64Char(ctx: CanvasRenderingContext2D, chardata: number[], x: numbe
 
   for (r = 0; r < 8; ++r) {
     for (b = 0; b < 8; ++b) {
-      var j = (r * 8 + (7 - b)) * 4;
+      var j = (x+(7-b) + (y+r)*width)*4;
       if ((chardata[r] & (1 << b)) != 0) {
-        char.data[j + 0] = C64colors[fg][0];
-        char.data[j + 1] = C64colors[fg][1];
-        char.data[j + 2] = C64colors[fg][2];
-        char.data[j + 3] = C64colors[fg][3];
+        bitmap[j + 0] = C64colors[fg][0];
+        bitmap[j + 1] = C64colors[fg][1];
+        bitmap[j + 2] = C64colors[fg][2];
+        bitmap[j + 3] = C64colors[fg][3];
       }
       else {
-        char.data[j + 0] = C64colors[bg][0];
-        char.data[j + 1] = C64colors[bg][1];
-        char.data[j + 2] = C64colors[bg][2];
-        char.data[j + 3] = C64colors[bg][3];
+        bitmap[j + 0] = C64colors[bg][0];
+        bitmap[j + 1] = C64colors[bg][1];
+        bitmap[j + 2] = C64colors[bg][2];
+        bitmap[j + 3] = C64colors[bg][3];
       }
     }
   }
 
-  ctx.putImageData(char, x, y);
+  requestAnimationFrame(animationCallback)
+
+  if (dirtywidth == 0 && dirtyheight == 0)
+  {
+    dirtyx = x;
+    dirtyy = y;
+    dirtywidth = 8;
+    dirtyheight = 8;
+    return;
+  }
+
+  if (x < dirtyx) {
+    dirtywidth += dirtyx - x;
+    dirtyx = x;
+  } else if (x+8 > dirtyx + dirtywidth)
+    dirtywidth += (x+8 - (dirtyx + dirtywidth));
+  if (y < dirtyy) {
+    dirtyheight += dirtyy - y;
+    dirtyy = y;
+  } else if (y+8 > dirtyy + dirtyheight)
+    dirtyheight += (y+8 - (dirtyy + dirtyheight));
+}
+
+function animationCallback() {
+  if (dirtywidth == 0 || dirtyheight == 0)
+    return;
+  ctx.putImageData(imgData, 0, 0, dirtyx, dirtyy, dirtywidth, dirtyheight);
+  dirtyx = 0;
+  dirtyy = 0;
+  dirtywidth = 0;
+  dirtyheight = 0;
 }
 
 // c64-drag-drop.ts - Commodore 64 display drawing
