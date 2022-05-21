@@ -43,9 +43,11 @@ Also see description of this project at [blog.davevw.com](https://techwithdave.d
 
 ### USE INSTRUCTIONS
 
-`requries [Node.js](https://nodejs.org/en/download/)
-npm install
-npm start
+requries [Node.js](https://nodejs.org/en/download/) and TypeScript
+
+    npm install
+    tsc
+    npm start
 
 ### LINKS
 
