@@ -343,6 +343,8 @@ function C64keyEventEx(event: KeyboardEvent): boolean {
 
   //console.log(sendkeys.toString());
   let msg = keys.toString();
+  if (msg.length == 0)
+    msg = "64";
   if (msg != last_keys) {
     cpuWorker.postMessage({ keys: msg });
     last_keys = msg;
