@@ -68,6 +68,7 @@ class Emu6502 {
     protected step: boolean = false;
     protected exit: boolean = false;
     protected yield: boolean = false;
+    public running_tests_disable_IRQ = false;
 
     protected execute: (context: any) => boolean;
     protected context: any;
@@ -171,7 +172,7 @@ class Emu6502 {
             while (true) {
                 let timer_read = Date.now();
                 let irq = false;
-                if ((timer_read - timer_then) >= interrupt_time) // 1/60th of a second
+                if (!this.running_tests_disable_IRQ && (timer_read - timer_then) >= interrupt_time) // 1/60th of a second
                 {
                     if (!this.I) { // if IRQ not disabled
                         timer_then = timer_read;
@@ -179,9 +180,15 @@ class Emu6502 {
                         if (timerA_enabled && this.isTimerAStarted()) { // timer hardware enabled?
                             this.Push(this.HI(this.PC));          
                             this.Push(this.LO(this.PC));
-                            this.B = false; // to tell the difference between IRQ and BRK, from what is on stack         
-                            this.PHP();
-                            this.B = true; // 6502 doesn't really have a B status flag, (code PHP always pushes as set)
+                            let flags: number = 
+                                (this.N ? 0x80 : 0)
+                                | (this.V ? 0x40 : 0)
+                                | 0x20  // reserved always set when pushed
+                                | (this.D ? 0x08 : 0)
+                                | (this.I ? 0x04 : 0)
+                                | (this.Z ? 0x02 : 0)
+                                | (this.C ? 0x01 : 0);
+                            this.Push(flags);
                             this.I = true;
                             this.PC = this.memory.get(0xFFFE) | (this.memory.get(0xFFFF) << 8);
                             irq = true;
@@ -253,7 +260,7 @@ class Emu6502 {
                 case 0x2A: this.SetA(this.ROL(this.A)); break;
                 case 0x2C: this.BIT(this.GetABS()); bytes = 3; break;
                 case 0x2D: this.AND(this.GetABS()); bytes = 3; break;
-                case 0x2E: this.ROL(this.GetABS()); bytes = 3; break;
+                case 0x2E: this.SetABS(this.ROL(this.GetABS())); bytes = 3; break;
 
                 case 0x30: this.BMI(); conditional = true; bytes = 0; break;
                 case 0x31: this.AND(this.GetIndY()); bytes = 2; break;
@@ -273,7 +280,7 @@ class Emu6502 {
                 case 0x4A: this.SetA(this.LSR(this.A)); break;
                 case 0x4C: this.JMP(); bytes = 0; break;
                 case 0x4D: this.EOR(this.GetABS()); bytes = 3; break;
-                case 0x4E: this.LSR(this.GetABS()); bytes = 3; break;
+                case 0x4E: this.SetABS(this.LSR(this.GetABS())); bytes = 3; break;
 
                 case 0x50: this.BVC(); conditional = true; bytes = 0; break;
                 case 0x51: this.EOR(this.GetIndY()); bytes = 2; break;
@@ -426,7 +433,7 @@ class Emu6502 {
             let result_dec: number = A_dec - value_dec - (this.C ? 0 : 1);
             this.C = (result_dec >= 0);
             if (!this.C)
-                result_dec = -result_dec; // absolute value
+                result_dec += 100; // adjust for negative result
             let result: number = (result_dec % 10) | (((result_dec / 10) % 10) << 4);
             this.SetA(result);
             this.N = false; // undefined?
@@ -546,8 +553,8 @@ class Emu6502 {
         let flags: number = 
             (this.N ? 0x80 : 0)
             | (this.V ? 0x40 : 0)
-            | 0x20
-            | (this.B ? 0x10 : 0)
+            | 0x20  // reserved always set when pushed
+            | 0x10 // break always set when pushed
             | (this.D ? 0x08 : 0)
             | (this.I ? 0x04 : 0)
             | (this.Z ? 0x02 : 0)
@@ -559,6 +566,7 @@ class Emu6502 {
         let flags: number = this.Pop();
         this.N = (flags & 0x80) != 0;
         this.V = (flags & 0x40) != 0;
+        this.B = (flags & 0x10) != 0;
         this.D = (flags & 0x08) != 0;
         this.I = (flags & 0x04) != 0;
         this.Z = (flags & 0x02) != 0;
@@ -725,6 +733,8 @@ class Emu6502 {
         this.Push(this.HI(this.PC));
         this.Push(this.LO(this.PC));
         this.PHP();
+        this.B = true;
+        this.I = true;
         this.PC = this.memory.get(0xFFFE) | (this.memory.get(0xFFFF) << 8); // JMP(IRQ)
     }
 
@@ -2576,6 +2586,121 @@ class EmuC64 {
     }
 }
 
+// EmuTest.ts - Class EmuTest
+// emulator for running 6502 tests
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// ts-emu-c64
+// C64/6502 Emulator for Web Browser
+//
+// MIT License
+//
+// Copyright (c) 2023 by David R. Van Wagner
+// davevw.com
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// plain 6502, no I/O, just memory to run test code
+// expecting rom testfile similar to 6502_functional_test.bin from https://github.com/Klaus2m5/6502_65C02_functional_tests
+// expected behavior is
+// 0) loads all memory starting at address 0x0000 through address 0xFFFF including NMI, RESET, IRQ vectors at end of memory
+// 1) start address of tests is at 0x400 manually patched by ExecutePatch(), not RESET vector
+// 2) active test number stored at 0x200
+// 3) failed test branches with BNE to same instruction to indicate cannot continue
+// 4) IRQs must not be active or IRQ vector catch will fail tests
+// 5) successful completion jumps to same instruction to indicate completion
+
+class EmuTest {
+    protected cpu: Emu6502;
+    protected memory: TestMemory;
+
+    private start: boolean;
+    private last_test = -1;
+
+    public constructor() {
+        this.memory = new TestMemory();
+        this.cpu = new Emu6502(this.memory, this.ExecutePatch, this);
+        this.cpu.running_tests_disable_IRQ = true;
+        this.start = true;
+    }
+
+    public async ResetRun() {
+        this.cpu.ResetRun();
+    }
+
+    ExecutePatch(context: any): boolean {
+        if (context.start)
+        {
+            context.cpu.PC = 0x0400; // start address of tests are 0400
+            console.log('Start');
+            context.start = false;
+            return true;
+        }
+        if (context.memory.get(context.cpu.PC) == 0xD0 && !context.cpu.Z && context.memory.get((context.cpu.PC + 1) & 0xFFFF) == 0xFE)
+        {
+            console.log(`${context.cpu.PC.toString(16)} Test FAIL`);
+            while(1) {} // spin
+            return false;
+        }
+        if (context.memory.get(context.cpu.PC)== 0x4C
+            && (context.memory.get((context.cpu.PC+1)&0xFFFF) == (context.cpu.PC & 0xFF) && context.memory.get((context.cpu.PC+2)&0xFFFF) == (context.cpu.PC >> 8)
+            || context.memory.get((context.cpu.PC+1)&0xFFFF) == 0x00 && context.memory.get((context.cpu.PC+2)&0xFFFF) == 0x04)
+            )
+        {
+            console.log(`${context.memory.get(context.cpu.PC).toString(16)} COMPLETED SUCCESS`);
+            while(1) {} // spin
+            return false;
+        }
+        if (context.memory.get(0x200) != context.last_test)
+        {
+            context.last_test = context.memory.get(0x200);
+            console.log(`${context.cpu.PC.toString(16)} Starting test ${context.last_test.toString(16)}`);
+        }  
+        return false;
+    }
+}
+
+class TestMemory implements Memory {
+    protected ram: number[];
+
+    constructor() {
+        this.ram = [
+// for 6502 tests MUST insert hex bytes derived from
+// https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/bin_files/6502_functional_test.bin
+// otherwise will probably BRK from zeroed memory
+// rom not included here due to licensing differences
+        ];
+    }
+
+    get(addr: number): number {
+        return this.ram[addr];
+    }
+
+    set(addr: number, value: number): void {
+        if (addr < 0x8000)
+            this.ram[addr] = value;
+    }
+}
+
 // walk6502.ts - Class Walk6502
 // disassembly of all reachable executable code including branches, jump, calls
 //
@@ -2712,7 +2837,11 @@ class CharPlotter
 
 function worker_function(disk: EmuD64) {
     const worker: Worker = self as any;
-    let c64 = new EmuC64(64*1024, new CharPlotter(worker), disk);
+    
+    let c64 = new EmuC64(64*1024, new CharPlotter(worker), disk);   
+    //use this instead of Emu64 if running 6502 Tests, see TestMemory for more dependencies, results shown in console log only
+    //let c64 = new EmuTest();
+
     //c64.Walk([]);
     c64.ResetRun();
     console.log("done");
