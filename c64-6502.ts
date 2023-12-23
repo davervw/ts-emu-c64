@@ -2046,6 +2046,8 @@ class C64Memory implements Memory {
                 else
                     return 0;
             }
+            else if (addr == 0xD41B && (this.io[0x412] & 0x80) != 0 && (this.io[0x40E] != 0 || this.io[0x40F] != 0)) // fake it using any non-zero frequency
+                return Math.floor(Math.random() * 256); // TODO: shouldn't return new number so fast depending on frequency
             else
                 return this.io[addr - this.io_addr];
         }
@@ -2123,6 +2125,8 @@ class C64Memory implements Memory {
             this.io[addr - this.io_addr] = value;
             this.redrawScreen(); // upper to lower or lower to upper
         }
+        else if (addr >= 0xD400 && addr <= 0xD41A) // SID writeable registers
+            this.io[addr - this.io_addr] = value;
     }
 
     redrawScreen() {
