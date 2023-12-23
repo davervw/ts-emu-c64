@@ -1674,15 +1674,18 @@ class EmuD64
         let isPRG : boolean = ((<number>(dir.file_type) & 7) == <number>(dir.FileType.PRG));
         let doFirst : boolean = (filename.length == 1 && filename[0] == '*'.charCodeAt(0))
             || (filename.length == 3 && filename[0] == '0'.charCodeAt(0) && filename[1] == ':'.charCodeAt(0) && filename[2] == '*'.charCodeAt(0))
-        for (let i=0; i<d64.DirStruct.dir_name_size; ++i)
+        let i;
+        for (i=0; i<d64.DirStruct.dir_name_size; ++i)
         {
             if (((i > 0 && dir.filename[i] == 0xA0) || doFirst) && isPRG) // end of filename shortcut
                 break;
             else if (filename[i] != dir.filename[i]) // no match
                 return [true, context]; // keep looking
         }
-        // full or shortcut match if got here
-        return [false, n];
+        if (i==filename.length)
+            return [false, n]; // full or shortcut match if got here
+        else
+            return [true, context]; // keep looking
     }
 
     public ReadFileByName(filename: Uint8Array): Uint8Array
